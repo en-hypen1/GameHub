@@ -37,7 +37,7 @@
             ClientSize = new Size(800, 450);
             Name = "MemoryForm";
             Text = "Form3";
-            Load += this.MemoryForm_Load;
+           // Load += this.MemoryForm_Load;
             ResumeLayout(false);
         }
 

@@ -13,11 +13,18 @@ namespace GameHub
         Button secondClicked = null;
         List<Button> matchedButtons = new List<Button>();
         Random rand = new Random();
-        ProgressBar timeBar;
         System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
         System.Windows.Forms.Timer gameTimer = new System.Windows.Forms.Timer();
 
-        // Ruajm imazhet dhe emrat e tyre si çifte paralele
+        // Game state
+        bool isGameActive = false;
+        Form mainFormReference;
+        bool isFormLoaded = false;
+
+        // Lista e kartave (butonave) për t'i ripozicionuar gjatë resize
+        List<Button> cardButtons = new List<Button>();
+
+        // Card data
         List<Image> images = new List<Image>()
         {
             Properties.Resources.earth,   Properties.Resources.earth,
@@ -42,12 +49,14 @@ namespace GameHub
             "saturn",  "saturn"
         };
 
-        // Pas shuffle, mbajm renditjen e re edhe per emrat
         List<int> shuffledIndices = new List<int>();
 
-        public MemoryForm()
+        public MemoryForm() : this(null) { }
+
+        public MemoryForm(Form parent)
         {
             InitializeComponent();
+            mainFormReference = parent;
             this.BackColor = Color.FromArgb(20, 20, 60);
             this.ClientSize = new Size(600, 600);
 
@@ -56,90 +65,147 @@ namespace GameHub
 
             gameTimer.Interval = 1000;
             gameTimer.Tick += GameTimer_Tick;
-            gameTimer.Start();
 
+            // Time label
             timeLabel = new Label();
             timeLabel.Location = new Point(10, 10);
             timeLabel.Size = new Size(200, 30);
             timeLabel.Font = new Font("Arial", 14, FontStyle.Bold);
             timeLabel.ForeColor = Color.White;
             this.Controls.Add(timeLabel);
+            timeLabel.Text = "Time: 60";
 
-
-            Button restartBtn = new Button();
-            restartBtn.Text = "🔄 Restart";
-            restartBtn.Size = new Size(120, 40);
+            // Restart button
+            Button restartBtn = CreateStyledButton("🔄 Restart", new Size(120, 40));
             restartBtn.Location = new Point(this.ClientSize.Width - 140, 10);
-
-            restartBtn.BackColor = Color.FromArgb(30, 30, 30);
-            restartBtn.ForeColor = Color.White;
-            restartBtn.FlatStyle = FlatStyle.Flat;
-            restartBtn.FlatAppearance.BorderSize = 0;
-            restartBtn.Font = new Font("Arial", 10, FontStyle.Bold);
-
             restartBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-
-            restartBtn.Click += (s, e) => { ResetGame(); };
-
+            restartBtn.Click += (s, e) => ResetGame();
             this.Controls.Add(restartBtn);
-           // this.BackgroundImage = Properties.Resources.galaxy; // shto një foto galaxy
-            //this.BackgroundImageLayout = ImageLayout.Stretch;
+
+            // Exit button
+            Button exitBtn = CreateStyledButton("Exit", new Size(80, 40));
+            exitBtn.Location = new Point(this.ClientSize.Width - 230, 10);
+            exitBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            exitBtn.Click += (s, e) =>
+            {
+                StopAllTimers();
+                if (mainFormReference != null && !mainFormReference.IsDisposed)
+                    mainFormReference.Show();
+                this.Close();
+            };
+            this.Controls.Add(exitBtn);
+
+            // Start button
+            Button startBtn = CreateStyledButton("▶ Start Game", new Size(120, 40));
+            startBtn.Location = new Point(this.ClientSize.Width / 2 - 60, this.ClientSize.Height - 80);
+            startBtn.Anchor = AnchorStyles.Bottom;
+            startBtn.Click += (s, e) =>
+            {
+                if (!isGameActive)
+                {
+                    ResetGame();
+                    isGameActive = true;
+                    startBtn.Visible = false;
+                    EnableAllCards(true);
+                    gameTimer.Start();
+                }
+            };
+            this.Controls.Add(startBtn);
+            startBtn.BringToFront();
+
             ShuffleIndices();
             CreateButtons();
+            EnableAllCards(false);
+
+            isFormLoaded = true;
         }
 
-        public MemoryForm(Form parent) : this()
+        private Button CreateStyledButton(string text, Size size)
         {
-            if (parent.WindowState == FormWindowState.Maximized)
-                this.WindowState = FormWindowState.Maximized;
-            else if (parent.WindowState == FormWindowState.Minimized)
-                this.WindowState = FormWindowState.Minimized;
-            else
-                this.WindowState = FormWindowState.Normal;
+            Button btn = new Button();
+            btn.Text = text;
+            btn.Size = size;
+            btn.BackColor = Color.FromArgb(30, 30, 30);
+            btn.ForeColor = Color.White;
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.Font = new Font("Arial", 10, FontStyle.Bold);
+            return btn;
         }
 
         void ResetGame()
         {
-            timer.Stop();
-            gameTimer.Stop();
+            StopAllTimers();
+            isGameActive = false;
 
-            this.Controls.Clear();
+            // Fshij të gjitha kontrollet përveç butonave fiks dhe timeLabel
+            var toRemove = new List<Control>();
+            foreach (Control ctrl in this.Controls)
+            {
+                if (ctrl is Button btn && (btn.Text == "🔄 Restart" || btn.Text == "Exit" || btn.Text == "▶ Start Game"))
+                    continue;
+                if (ctrl != timeLabel)
+                    toRemove.Add(ctrl);
+            }
+            foreach (var ctrl in toRemove)
+                this.Controls.Remove(ctrl);
 
-            timeLabel = new Label();
-            timeLabel.Location = new Point(10, 10);
-            timeLabel.Size = new Size(200, 30);
-            timeLabel.Font = new Font("Arial", 14, FontStyle.Bold);
-            timeLabel.ForeColor = Color.White;
-            this.Controls.Add(timeLabel);
+            // Pastro listën e kartave
+            cardButtons.Clear();
 
-            Button restartBtn = new Button();
-            restartBtn.Text = "🔄 Restart";
-            restartBtn.Size = new Size(120, 40);
-            restartBtn.Location = new Point(this.ClientSize.Width - 140, 10);
+            if (!this.Controls.Contains(timeLabel))
+                this.Controls.Add(timeLabel);
 
-            restartBtn.BackColor = Color.FromArgb(30, 30, 30);
-            restartBtn.ForeColor = Color.White;
-            restartBtn.FlatStyle = FlatStyle.Flat;
-            restartBtn.FlatAppearance.BorderSize = 0;
-            restartBtn.Font = new Font("Arial", 10, FontStyle.Bold);
+            // Gjej ose krijo Start button
+            Button startBtn = null;
+            foreach (Control ctrl in this.Controls)
+                if (ctrl is Button b && b.Text == "▶ Start Game")
+                    startBtn = b;
 
-            restartBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-
-            restartBtn.Click += (s, e) => { ResetGame(); };
-
-            this.Controls.Add(restartBtn);
+            if (startBtn == null)
+            {
+                startBtn = CreateStyledButton("▶ Start Game", new Size(120, 40));
+                startBtn.Location = new Point(this.ClientSize.Width / 2 - 60, this.ClientSize.Height - 80);
+                startBtn.Anchor = AnchorStyles.Bottom;
+                startBtn.Click += (s, e) =>
+                {
+                    if (!isGameActive)
+                    {
+                        ResetGame();
+                        isGameActive = true;
+                        startBtn.Visible = false;
+                        EnableAllCards(true);
+                        gameTimer.Start();
+                    }
+                };
+                this.Controls.Add(startBtn);
+            }
+            startBtn.Visible = true;
+            startBtn.BringToFront();
 
             firstClicked = null;
             secondClicked = null;
             matchedButtons.Clear();
             timeLeft = 60;
+            timeLabel.Text = "Time: 60";
 
-            gameTimer.Start();
             ShuffleIndices();
             CreateButtons();
+            EnableAllCards(false);
         }
 
-        // Shuffle indices (jo imazhet direkt) - keshtu ruhet lidhja imazh<->emer
+        void EnableAllCards(bool enabled)
+        {
+            foreach (Button btn in cardButtons)
+                btn.Enabled = enabled;
+        }
+
+        void StopAllTimers()
+        {
+            gameTimer.Stop();
+            timer.Stop();
+        }
+
         void ShuffleIndices()
         {
             shuffledIndices.Clear();
@@ -157,60 +223,41 @@ namespace GameHub
 
         void GameTimer_Tick(object sender, EventArgs e)
         {
+            if (!isGameActive) return;
+
             timeLeft--;
             timeLabel.Text = "Time: " + timeLeft;
-            if (timeLeft == 0)
+            if (timeLeft <= 0)
             {
                 gameTimer.Stop();
-                MessageBox.Show("Time's up! 😢");
+                timer.Stop();
+                isGameActive = false;
+                EnableAllCards(false);
+                MessageBox.Show("Time's up! 😢", "Game Over", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowStartButton();
             }
         }
 
-        /* void CreateButtons()
-         {
-             int btnSize = 120;
-             int spacing = 10;
+        void ShowStartButton()
+        {
+            foreach (Control ctrl in this.Controls)
+                if (ctrl is Button btn && btn.Text == "▶ Start Game")
+                {
+                    btn.Visible = true;
+                    break;
+                }
+        }
 
-             for (int i = 0; i < 4; i++)
-             {
-                 for (int j = 0; j < 4; j++)
-                 {
-                     int index = i * 4 + j;
-                     int originalIndex = shuffledIndices[index];
-
-                     Button btn = new Button();
-                     btn.Size = new Size(btnSize, btnSize);
-                     btn.Location = new Point(j * (btnSize + spacing) + 50, i * (btnSize + spacing) + 60);
-
-                     // TAG = emri i imazhit (string) - per krahasim te sakte
-                     btn.Tag = imageNames[originalIndex];
-
-                     // Ruajm imazhin si property e veçante (perdorim Name per imazhin)
-                     btn.BackgroundImage = images[originalIndex]; // e fshehim menjehere
-                     btn.BackgroundImage = null;
-
-                     // Ruajm imazhin ne AccessibleDescription (menyra e thjesht)
-                     btn.AccessibleDescription = originalIndex.ToString();
-
-                     btn.BackgroundImageLayout = ImageLayout.Stretch;
-                     btn.BackColor = Color.Gray;
-                     btn.Click += Button_Click;
-                     this.Controls.Add(btn);
-                 }
-             }
-         }*/
         void CreateButtons()
         {
             int rows = 4;
             int cols = 4;
-
             int topOffset = 80;
             int sidePadding = 40;
             int spacing = 10;
 
             int availableWidth = this.ClientSize.Width - (sidePadding * 2);
             int availableHeight = this.ClientSize.Height - topOffset - 20;
-
             int btnSize = Math.Min(
                 (availableWidth - (cols - 1) * spacing) / cols,
                 (availableHeight - (rows - 1) * spacing) / rows
@@ -224,47 +271,80 @@ namespace GameHub
                     int originalIndex = shuffledIndices[index];
 
                     Button btn = new Button();
-
                     btn.Size = new Size(btnSize, btnSize);
                     btn.Location = new Point(
                         sidePadding + j * (btnSize + spacing),
                         topOffset + i * (btnSize + spacing)
                     );
-
                     btn.Tag = imageNames[originalIndex];
                     btn.AccessibleDescription = originalIndex.ToString();
-
                     btn.BackgroundImageLayout = ImageLayout.Stretch;
+                    btn.FlatStyle = FlatStyle.Flat;
+                    btn.FlatAppearance.BorderSize = 0;
+                    btn.FlatAppearance.MouseDownBackColor = Color.Transparent;
                     btn.BackColor = Color.FromArgb(40, 40, 40);
-
                     btn.Click += Button_Click;
                     btn.MouseEnter += (s, e) => btn.BackColor = Color.DarkSlateBlue;
-
                     btn.MouseLeave += (s, e) =>
                     {
                         if (!matchedButtons.Contains(btn))
                             btn.BackColor = Color.FromArgb(40, 40, 40);
                     };
-
                     this.Controls.Add(btn);
+                    cardButtons.Add(btn);  // ruajm referencën për resize
                 }
             }
         }
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
 
-            ResetGame(); // rigjeneron grid sipas madhësisë
+        void RepositionCards()
+        {
+            if (cardButtons.Count == 0) return;
+
+            int rows = 4, cols = 4;
+            int topOffset = 80;
+            int sidePadding = 40;
+            int spacing = 10;
+
+            int availableWidth = this.ClientSize.Width - (sidePadding * 2);
+            int availableHeight = this.ClientSize.Height - topOffset - 20;
+            int btnSize = Math.Min(
+                (availableWidth - (cols - 1) * spacing) / cols,
+                (availableHeight - (rows - 1) * spacing) / rows
+            );
+            if (btnSize < 40) btnSize = 40;
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    int idx = i * cols + j;
+                    if (idx >= cardButtons.Count) continue;
+                    Button btn = cardButtons[idx];
+                    btn.Size = new Size(btnSize, btnSize);
+                    btn.Location = new Point(
+                        sidePadding + j * (btnSize + spacing),
+                        topOffset + i * (btnSize + spacing)
+                    );
+                }
+            }
+
+            // Rregullo pozicionin e butonit Start që të mbetet në qendër
+            foreach (Control ctrl in this.Controls)
+                if (ctrl is Button btn && btn.Text == "▶ Start Game")
+                {
+                    btn.Location = new Point(this.ClientSize.Width / 2 - btn.Width / 2, this.ClientSize.Height - 70);
+                    break;
+                }
         }
 
         void Button_Click(object sender, EventArgs e)
         {
-            Button clicked = sender as Button;
+            if (!isGameActive) return;
 
+            Button clicked = sender as Button;
             if (matchedButtons.Contains(clicked) || timer.Enabled)
                 return;
 
-            // Shfaq imazhin duke perdorur indeksin e ruajtur
             int imgIndex = int.Parse(clicked.AccessibleDescription);
             clicked.BackgroundImage = images[imgIndex];
 
@@ -276,25 +356,26 @@ namespace GameHub
 
             secondClicked = clicked;
 
-            // Krahaso emrat (string) - jo referencat e objekteve
             if ((string)firstClicked.Tag == (string)secondClicked.Tag)
             {
                 System.Media.SystemSounds.Asterisk.Play();
                 matchedButtons.Add(firstClicked);
                 matchedButtons.Add(secondClicked);
-
                 firstClicked.BackColor = Color.LightGreen;
                 secondClicked.BackColor = Color.LightGreen;
 
                 firstClicked = null;
                 secondClicked = null;
 
-                // Kontrollo nese loja mbaroi
                 if (matchedButtons.Count == 16)
                 {
                     gameTimer.Stop();
-                    this.BackColor = Color.DarkGreen;
-                    MessageBox.Show("Urime! Fitove! 🎉");
+                    timer.Stop();
+                    isGameActive = false;
+                    EnableAllCards(false);
+                    // Ndryshimi 1: Nuk e ndryshojmë më background-in e formës
+                    MessageBox.Show("Urime! Fitove! 🎉", "Victory", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowStartButton();
                 }
             }
             else
@@ -310,16 +391,32 @@ namespace GameHub
             if (firstClicked != null && !matchedButtons.Contains(firstClicked))
             {
                 firstClicked.BackgroundImage = null;
-                firstClicked.BackColor = Color.Gray;
+                firstClicked.BackColor = Color.FromArgb(40, 40, 40);
             }
             if (secondClicked != null && !matchedButtons.Contains(secondClicked))
             {
                 secondClicked.BackgroundImage = null;
-                secondClicked.BackColor = Color.Gray;
+                secondClicked.BackColor = Color.FromArgb(40, 40, 40);
             }
 
             firstClicked = null;
             secondClicked = null;
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (isFormLoaded)
+            {
+                // Ndryshimi 2: Në vend që të resetojë lojën, vetëm ripozicionon kartat
+                RepositionCards();
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            StopAllTimers();
+            base.OnFormClosing(e);
         }
 
         private void MemoryForm_Load(object sender, EventArgs e) { }
