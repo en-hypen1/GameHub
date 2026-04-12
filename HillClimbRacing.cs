@@ -8,7 +8,7 @@ namespace GameHub
     public partial class HillClimbRacing : Form
     {
         private System.Windows.Forms.Timer gameTimer;
-        private Form1 mainForm;
+        private Main mainForm;
 
         // Variablat e lojës
         private float carX = 100;
@@ -78,7 +78,7 @@ namespace GameHub
         private Font fontMed = new Font("Arial", 18, FontStyle.Bold);
         private Font fontWin = new Font("Arial", 36, FontStyle.Bold);
 
-        public HillClimbRacing(Form1 main)
+        public HillClimbRacing(Main main)
         {
             mainForm = main;
             InitializeComponent();

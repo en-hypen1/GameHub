@@ -1,8 +1,4 @@
-﻿using System;
-using System.Drawing;
-using System.Windows.Forms;
-
-namespace GameHub
+﻿namespace GameHub
 {
     public partial class Main : Form
     {
@@ -12,6 +8,7 @@ namespace GameHub
         private Rectangle pictureMemoryOriginalRect;
         private Rectangle pictureFlappyOriginalRect;
         private Rectangle pictureDinoOriginalRect;
+        private Rectangle pictureHillOriginalRect;
 
         public Main()
         {
@@ -31,11 +28,13 @@ namespace GameHub
             EnableDoubleBuffering(pictureMemory);
             EnableDoubleBuffering(pictureFlappy);
             EnableDoubleBuffering(pictureDino);
+            EnableDoubleBuffering(pictureHill);
             EnableDoubleBuffering(HomePanel);
             EnableDoubleBuffering(snakePanel);
             EnableDoubleBuffering(memoryPanel);
             EnableDoubleBuffering(dinoPanel);
             EnableDoubleBuffering(flappyBirdPanel);
+            EnableDoubleBuffering(hillPanel);
             // ========== MENAXHIMI I PANELEVE ==========
             HideAllGamePanels();
             HomePanel.Visible = true;
@@ -54,6 +53,7 @@ namespace GameHub
             pictureMemoryOriginalRect = new Rectangle(pictureMemory.Location, pictureMemory.Size);
             pictureFlappyOriginalRect = new Rectangle(pictureFlappy.Location, pictureFlappy.Size);
             pictureDinoOriginalRect = new Rectangle(pictureDino.Location, pictureDino.Size);
+            pictureHillOriginalRect = new Rectangle(pictureHill.Location, pictureHill.Size);
 
             // Bëj resize fillestar
             PerformResize();
@@ -69,6 +69,7 @@ namespace GameHub
             ResizeControl(pictureMemoryOriginalRect, pictureMemory);
             ResizeControl(pictureFlappyOriginalRect, pictureFlappy);
             ResizeControl(pictureDinoOriginalRect, pictureDino);
+            ResizeControl(pictureHillOriginalRect, pictureHill);
 
             this.ResumeLayout();
             this.Refresh();
@@ -119,8 +120,9 @@ namespace GameHub
             if (snakePanel != null) snakePanel.Visible = false;
             if (memoryPanel != null) memoryPanel.Visible = false;
             if (dinoPanel != null) dinoPanel.Visible = false;
-           if (flappyBirdPanel != null) flappyBirdPanel.Visible = false;
-           // if (hillClimbPanel != null) hillClimbPanel.Visible = false;
+            if (flappyBirdPanel != null) flappyBirdPanel.Visible = false;
+            if (hillPanel != null) hillPanel.Visible = false;
+            // if (hillClimbPanel != null) hillClimbPanel.Visible = false;
         }
         private void ShowGamePanel(Panel gamePanel)
         {
@@ -140,7 +142,8 @@ namespace GameHub
             OptimizeImagesInContainer(memoryPanel);
             OptimizeImagesInContainer(dinoPanel);
             OptimizeImagesInContainer(flappyBirdPanel);
-           // OptimizeImagesInContainer(hillClimbPanel);
+            OptimizeImagesInContainer(hillPanel);
+            // OptimizeImagesInContainer(hillClimbPanel);
         }
 
         private void OptimizeImagesInContainer(Control container)
@@ -190,6 +193,11 @@ namespace GameHub
             ShowGamePanel(snakePanel);
         }
 
+        private void hillPictureClick(object sender, EventArgs e)
+        {
+            ShowGamePanel(hillPanel);
+        }
+
 
         // ========== BUTONAT PLAY ==========
         private void playButton_Click(object sender, EventArgs e)
@@ -220,6 +228,13 @@ namespace GameHub
             dino.Show();
         }
 
+        private void hillPlayButton_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            HillClimbRacing hill = new HillClimbRacing(this);
+            hill.Show();
+        }
+
         // ========== BUTONAT BACK ==========
         private void backButton_Click(object sender, EventArgs e)
         {
@@ -246,6 +261,13 @@ namespace GameHub
         }
 
         private void dinoBackButton_Click(object sender, EventArgs e)
+        {
+            HideAllGamePanels();
+            HomePanel.Visible = true;
+            HomePanel.BringToFront();
+            this.Refresh();
+        }
+        private void hillBackButton_Click(object sender, EventArgs e)
         {
             HideAllGamePanels();
             HomePanel.Visible = true;

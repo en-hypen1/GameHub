@@ -34,6 +34,8 @@
             pictureMemory = new PictureBox();
             pictureDino = new PictureBox();
             HomePanel = new Panel();
+            pictureHill = new PictureBox();
+            label1 = new Label();
             snakePanel = new Panel();
             playButton = new PictureBox();
             backButton = new PictureBox();
@@ -46,12 +48,15 @@
             memoryPanel = new Panel();
             pictureBox1 = new PictureBox();
             memoryBackButton = new PictureBox();
-            label1 = new Label();
+            hillPanel = new Panel();
+            hillPlayButton = new PictureBox();
+            hillBackButton = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)pictureSnake).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureFlappy).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureMemory).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureDino).BeginInit();
             HomePanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureHill).BeginInit();
             snakePanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)playButton).BeginInit();
             ((System.ComponentModel.ISupportInitialize)backButton).BeginInit();
@@ -64,6 +69,9 @@
             memoryPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)memoryBackButton).BeginInit();
+            hillPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)hillPlayButton).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)hillBackButton).BeginInit();
             SuspendLayout();
             // 
             // pictureSnake
@@ -119,6 +127,7 @@
             HomePanel.BackColor = Color.Transparent;
             HomePanel.BackgroundImage = (Image)resources.GetObject("HomePanel.BackgroundImage");
             HomePanel.BackgroundImageLayout = ImageLayout.Stretch;
+            HomePanel.Controls.Add(pictureHill);
             HomePanel.Controls.Add(label1);
             HomePanel.Controls.Add(pictureSnake);
             HomePanel.Controls.Add(pictureFlappy);
@@ -129,6 +138,32 @@
             HomePanel.Name = "HomePanel";
             HomePanel.Size = new Size(875, 459);
             HomePanel.TabIndex = 4;
+            // 
+            // pictureHill
+            // 
+            pictureHill.BackColor = Color.Transparent;
+            pictureHill.BackgroundImage = (Image)resources.GetObject("pictureHill.BackgroundImage");
+            pictureHill.BackgroundImageLayout = ImageLayout.Stretch;
+            pictureHill.Location = new Point(115, 269);
+            pictureHill.Name = "pictureHill";
+            pictureHill.Size = new Size(156, 187);
+            pictureHill.TabIndex = 5;
+            pictureHill.TabStop = false;
+            pictureHill.Click += hillPictureClick;
+            // 
+            // label1
+            // 
+            label1.Anchor = AnchorStyles.Top;
+            label1.AutoSize = true;
+            label1.BackColor = Color.Transparent;
+            label1.Font = new Font("Broadway", 34F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            label1.ForeColor = SystemColors.ButtonFace;
+            label1.Location = new Point(303, 18);
+            label1.Name = "label1";
+            label1.Size = new Size(283, 52);
+            label1.TabIndex = 4;
+            label1.Text = "GAME HUB";
+            label1.TextAlign = ContentAlignment.TopCenter;
             // 
             // snakePanel
             // 
@@ -287,19 +322,44 @@
             memoryBackButton.TabStop = false;
             memoryBackButton.Click += memoryBackButton_Click;
             // 
-            // label1
+            // hillPanel
             // 
-            label1.Anchor = AnchorStyles.Top;
-            label1.AutoSize = true;
-            label1.BackColor = Color.Transparent;
-            label1.Font = new Font("Broadway", 34F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            label1.ForeColor = SystemColors.ButtonFace;
-            label1.Location = new Point(303, 18);
-            label1.Name = "label1";
-            label1.Size = new Size(283, 52);
-            label1.TabIndex = 4;
-            label1.Text = "GAME HUB";
-            label1.TextAlign = ContentAlignment.TopCenter;
+            hillPanel.BackgroundImage = (Image)resources.GetObject("hillPanel.BackgroundImage");
+            hillPanel.BackgroundImageLayout = ImageLayout.Stretch;
+            hillPanel.Controls.Add(hillPlayButton);
+            hillPanel.Controls.Add(hillBackButton);
+            hillPanel.Dock = DockStyle.Fill;
+            hillPanel.Location = new Point(0, 0);
+            hillPanel.Name = "hillPanel";
+            hillPanel.Size = new Size(875, 459);
+            hillPanel.TabIndex = 19;
+            // 
+            // hillPlayButton
+            // 
+            hillPlayButton.Anchor = AnchorStyles.Bottom;
+            hillPlayButton.BackColor = Color.Transparent;
+            hillPlayButton.BackgroundImage = (Image)resources.GetObject("hillPlayButton.BackgroundImage");
+            hillPlayButton.BackgroundImageLayout = ImageLayout.Stretch;
+            hillPlayButton.Location = new Point(250, 336);
+            hillPlayButton.Name = "hillPlayButton";
+            hillPlayButton.Size = new Size(373, 120);
+            hillPlayButton.SizeMode = PictureBoxSizeMode.CenterImage;
+            hillPlayButton.TabIndex = 3;
+            hillPlayButton.TabStop = false;
+            hillPlayButton.Click += hillPlayButton_Click;
+            // 
+            // hillBackButton
+            // 
+            hillBackButton.BackColor = Color.Transparent;
+            hillBackButton.BackgroundImage = (Image)resources.GetObject("hillBackButton.BackgroundImage");
+            hillBackButton.BackgroundImageLayout = ImageLayout.Stretch;
+            hillBackButton.Location = new Point(3, 3);
+            hillBackButton.Name = "hillBackButton";
+            hillBackButton.Size = new Size(123, 117);
+            hillBackButton.SizeMode = PictureBoxSizeMode.Zoom;
+            hillBackButton.TabIndex = 1;
+            hillBackButton.TabStop = false;
+            hillBackButton.Click += hillBackButton_Click;
             // 
             // Main
             // 
@@ -308,6 +368,7 @@
             BackgroundImageLayout = ImageLayout.Stretch;
             ClientSize = new Size(875, 459);
             Controls.Add(HomePanel);
+            Controls.Add(hillPanel);
             Controls.Add(memoryPanel);
             Controls.Add(flappyBirdPanel);
             Controls.Add(dinoPanel);
@@ -322,6 +383,7 @@
             ((System.ComponentModel.ISupportInitialize)pictureDino).EndInit();
             HomePanel.ResumeLayout(false);
             HomePanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureHill).EndInit();
             snakePanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)playButton).EndInit();
             ((System.ComponentModel.ISupportInitialize)backButton).EndInit();
@@ -334,6 +396,9 @@
             memoryPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)memoryBackButton).EndInit();
+            hillPanel.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)hillPlayButton).EndInit();
+            ((System.ComponentModel.ISupportInitialize)hillBackButton).EndInit();
             ResumeLayout(false);
         }
 
@@ -357,5 +422,9 @@
         private PictureBox memoryBackButton;
         private PictureBox pictureBox1;
         private Label label1;
+        private PictureBox pictureHill;
+        private Panel hillPanel;
+        private PictureBox hillPlayButton;
+        private PictureBox hillBackButton;
     }
 }
