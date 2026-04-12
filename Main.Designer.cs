@@ -46,6 +46,7 @@
             memoryPanel = new Panel();
             pictureBox1 = new PictureBox();
             memoryBackButton = new PictureBox();
+            label1 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureSnake).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureFlappy).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureMemory).BeginInit();
@@ -118,6 +119,7 @@
             HomePanel.BackColor = Color.Transparent;
             HomePanel.BackgroundImage = (Image)resources.GetObject("HomePanel.BackgroundImage");
             HomePanel.BackgroundImageLayout = ImageLayout.Stretch;
+            HomePanel.Controls.Add(label1);
             HomePanel.Controls.Add(pictureSnake);
             HomePanel.Controls.Add(pictureFlappy);
             HomePanel.Controls.Add(pictureMemory);
@@ -285,6 +287,20 @@
             memoryBackButton.TabStop = false;
             memoryBackButton.Click += memoryBackButton_Click;
             // 
+            // label1
+            // 
+            label1.Anchor = AnchorStyles.Top;
+            label1.AutoSize = true;
+            label1.BackColor = Color.Transparent;
+            label1.Font = new Font("Broadway", 34F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            label1.ForeColor = SystemColors.ButtonFace;
+            label1.Location = new Point(303, 18);
+            label1.Name = "label1";
+            label1.Size = new Size(283, 52);
+            label1.TabIndex = 4;
+            label1.Text = "GAME HUB";
+            label1.TextAlign = ContentAlignment.TopCenter;
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -305,6 +321,7 @@
             ((System.ComponentModel.ISupportInitialize)pictureMemory).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureDino).EndInit();
             HomePanel.ResumeLayout(false);
+            HomePanel.PerformLayout();
             snakePanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)playButton).EndInit();
             ((System.ComponentModel.ISupportInitialize)backButton).EndInit();
@@ -339,5 +356,6 @@
         private Panel memoryPanel;
         private PictureBox memoryBackButton;
         private PictureBox pictureBox1;
+        private Label label1;
     }
 }

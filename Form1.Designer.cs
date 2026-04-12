@@ -465,9 +465,9 @@
             BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
             BackgroundImageLayout = ImageLayout.Stretch;
             ClientSize = new Size(978, 484);
+            Controls.Add(Home);
             Controls.Add(flappyBirdPanel);
             Controls.Add(dinoPanel);
-            Controls.Add(Home);
             Controls.Add(snakePanel);
             Controls.Add(memoryPanel);
             DoubleBuffered = true;
