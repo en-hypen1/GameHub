@@ -374,7 +374,7 @@
             Controls.Add(dinoPanel);
             Controls.Add(snakePanel);
             Name = "Main";
-            Text = "Main";
+            Text = " ";
             Load += Main_Load;
             Resize += Main_Resize;
             ((System.ComponentModel.ISupportInitialize)pictureSnake).EndInit();

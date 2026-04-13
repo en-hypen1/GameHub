@@ -1,626 +1,858 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Media;
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace GameHub
 {
     public partial class DinoJumpForm : Form
     {
-        bool goLeft, goRight, jumping;
-        int jumpSpeed = 0;
-        int force = 14;
-        int playerSpeed = 8;
-        int score = 0;
-        int lastPlatformY;
-        int gameDistance = 0;
-        int finishDistance = 4000;
-        bool gameStarted = false;
-        bool gameFinished = false;
+        // ── TINGUJ ──────────────────────────────────────────────
+        [DllImport("kernel32.dll")]
+        static extern bool Beep(int freq, int duration);
 
-        // Pozicioni fiks i lojtarit në ekran (në mes)
-        int playerScreenX = 200; // Dino do të jetë fiks në këtë pozicion
+        void PlayJump() { try { System.Threading.Tasks.Task.Run(() => Beep(600, 60)); } catch { } }
+        void PlayCoin() { try { System.Threading.Tasks.Task.Run(() => { Beep(1047, 60); Beep(1319, 60); }); } catch { } }
+        void PlayDie() { try { System.Threading.Tasks.Task.Run(() => { Beep(300, 120); Beep(200, 200); }); } catch { } }
+        void PlayWin() { try { System.Threading.Tasks.Task.Run(() => { Beep(523, 80); Beep(659, 80); Beep(784, 80); Beep(1047, 200); }); } catch { } }
+
+        // ── KONSTANTET ──────────────────────────────────────────
+        const int DINO_W = 52;
+        const int DINO_H = 64;
+        const int DINO_SCREEN_X = 180;
+        const int FINISH_DIST = 18000;  // 3x më gjatë!
+        const int WORLD_SPEED = 6;
+
+        // Këto llogariten dinamikisht sipas madhësisë së formës
+        int SCREEN_W => this.ClientSize.Width;
+        int SCREEN_H => this.ClientSize.Height;
+        int GROUND_Y => this.ClientSize.Height - 100;
+
+        // ── GJENDJA ─────────────────────────────────────────────
+        float dinoY = 400;
+        float dinoVY = 0;
+        float gravity = 0.7f;
+        float jumpForce = -16f;
+        bool onGround = true;
+        bool doubleJump = false;
+        int legAnim = 0;
+
+        int score = 0;
+        int worldOffset = 0;
+        bool gameStarted = false;
+        bool isGameOver = false;
+        bool hasWon = false;
+        bool isPaused = false;
+        int flashTimer = 0;
 
         System.Windows.Forms.Timer gameTimer = new System.Windows.Forms.Timer();
         Random rnd = new Random();
 
-        Rectangle player;
-        Rectangle ground;
+        struct Platform { public float X, Y, W; }
+        struct Coin { public float X, Y; public bool Taken; }
+        struct Enemy { public float X, Y; public int Type; } // 0=kaktus,1=zog
+        struct Particle { public float X, Y, VX, VY, Life; public Color Color; }
 
-        List<Rectangle> platforms = new List<Rectangle>();
-        List<Rectangle> coins = new List<Rectangle>();
-        List<Rectangle> enemies = new List<Rectangle>();
+        List<Platform> platforms = new List<Platform>();
+        List<Coin> coins = new List<Coin>();
+        List<Enemy> enemies = new List<Enemy>();
+        List<Particle> particles = new List<Particle>();
 
-        // Audio components
-        SoundPlayer jumpSound;
-        SoundPlayer coinSound;
-        SoundPlayer gameOverSound;
-        SoundPlayer winSound;
+        int spawnPlatTimer = 0;
+        int spawnCoinTimer = 0;
+        int spawnEnemTimer = 0;
 
-        // Start Panel
-        Panel startPanel;
-        Label startTitle;
-        Label startMessage;
-        Button startButton;
+        Font fontBig = new Font("Arial", 32, FontStyle.Bold);
+        Font fontMed = new Font("Arial", 18, FontStyle.Bold);
+        Font fontSmall = new Font("Arial", 13, FontStyle.Bold);
+        Font fontTiny = new Font("Arial", 10);
+
+        private Form _parentForm;
 
         public DinoJumpForm()
         {
             InitializeComponent();
-
             this.DoubleBuffered = true;
-            this.ClientSize = new Size(1200, 700);
+            this.KeyPreview = true;
             this.Text = "Dino Adventure";
             this.BackColor = Color.SkyBlue;
+            this.FormClosing += DinoJumpForm_FormClosing;
+            this.KeyDown += DinoJumpForm_KeyDown;
+            this.KeyUp += DinoJumpForm_KeyUp;
+            this.Resize += (s, e) => this.Invalidate();
 
-            // Lojtari në pozicion fiks horizontal
-            player = new Rectangle(playerScreenX, 300, 55, 55);
+            // Fillo maximized
+            this.WindowState = FormWindowState.Maximized;
 
-            LoadAudioFiles();
-            CreateLevel();
-            CreateStartScreen();
-
-            gameTimer.Interval = 20;
+            gameTimer.Interval = 16;
             gameTimer.Tick += GameLoop;
 
-            this.KeyDown += KeyIsDown;
-            this.KeyUp += KeyIsUp;
-            this.KeyPreview = true;
-        }
-
-        void LoadAudioFiles()
-        {
-            try
-            {
-                jumpSound = new SoundPlayer();
-                coinSound = new SoundPlayer();
-                gameOverSound = new SoundPlayer();
-                winSound = new SoundPlayer();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Audio not available: " + ex.Message);
-            }
-        }
-
-        void PlayJumpSound()
-        {
-            try
-            {
-                System.Media.SystemSounds.Beep.Play();
-            }
-            catch { }
-        }
-
-        void PlayCoinSound()
-        {
-            try
-            {
-                Console.Beep(1000, 100); // Beep i shkurtër për të mos ndaluar lojën
-            }
-            catch { }
-        }
-
-        void PlayGameOverSound()
-        {
-            try
-            {
-                Console.Beep(300, 800);
-                System.Threading.Thread.Sleep(100);
-                Console.Beep(250, 600);
-            }
-            catch { }
-        }
-
-        void PlayWinSound()
-        {
-            try
-            {
-                int[] notes = { 523, 587, 659, 698, 784, 880 };
-                foreach (int note in notes)
-                {
-                    Console.Beep(note, 150);
-                    System.Threading.Thread.Sleep(50);
-                }
-            }
-            catch { }
-        }
-
-        void CreateStartScreen()
-        {
-            startPanel = new Panel();
-            startPanel.Size = new Size(500, 300);
-            startPanel.Location = new Point((this.ClientSize.Width - 500) / 2, (this.ClientSize.Height - 300) / 2);
-            startPanel.BackColor = Color.FromArgb(200, 0, 0, 0);
-            startPanel.BorderStyle = BorderStyle.FixedSingle;
-
-            startTitle = new Label();
-            startTitle.Text = "🦖 DINO ADVENTURE 🦖";
-            startTitle.Font = new Font("Arial", 24, FontStyle.Bold);
-            startTitle.ForeColor = Color.Gold;
-            startTitle.BackColor = Color.Transparent;
-            startTitle.Size = new Size(450, 50);
-            startTitle.Location = new Point(25, 30);
-            startTitle.TextAlign = ContentAlignment.MiddleCenter;
-            startPanel.Controls.Add(startTitle);
-
-            startMessage = new Label();
-            startMessage.Text = "🏃‍♂️ PËRSHKRIMI I LOJËS:\n\n" +
-                               "• Mblidh monedhat e arta për pikë\n" +
-                               "• Shmang pengesat e kuqe\n" +
-                               "• Përdor platformat fluturuese\n" +
-                               "• Arri në vijën e finish-it\n\n" +
-                               "🎮 KONTROLLET:\n" +
-                               "• ← → : Lëviz majtas/djathtas\n" +
-                               "• SPACE : Kërce\n\n" +
-                               "⬇️ SHTYP ENTER PËR TË FILLUAR ⬇️";
-            startMessage.Font = new Font("Arial", 12);
-            startMessage.ForeColor = Color.White;
-            startMessage.BackColor = Color.Transparent;
-            startMessage.Size = new Size(450, 210);
-            startMessage.Location = new Point(25, 85);
-            startPanel.Controls.Add(startMessage);
-
-            startButton = new Button();
-            startButton.Text = "🎮 FILLO LOJËN 🎮";
-            startButton.Font = new Font("Arial", 14, FontStyle.Bold);
-            startButton.BackColor = Color.Green;
-            startButton.ForeColor = Color.White;
-            startButton.Size = new Size(200, 40);
-            startButton.Location = new Point(150, 250);
-            startButton.FlatStyle = FlatStyle.Flat;
-            startButton.Click += StartButton_Click;
-            startPanel.Controls.Add(startButton);
-
-            this.Controls.Add(startPanel);
-            startPanel.BringToFront();
-        }
-
-        void StartButton_Click(object sender, EventArgs e)
-        {
-            StartGame();
-        }
-
-        void StartGame()
-        {
-            gameStarted = true;
-            gameFinished = false;
-            if (startPanel != null)
-            {
-                this.Controls.Remove(startPanel);
-                startPanel.Dispose();
-            }
-            gameTimer.Start();
+            // Platformë fillestare e gjatë
+            platforms.Add(new Platform { X = -200, Y = 0, W = 99999 }); // toka bazë - Y llogaritet në OnPaint
         }
 
         public DinoJumpForm(Form parent) : this()
         {
-            if (parent.WindowState == FormWindowState.Maximized)
-                this.WindowState = FormWindowState.Maximized;
-            else if (parent.WindowState == FormWindowState.Minimized)
-                this.WindowState = FormWindowState.Minimized;
-            else
-                this.WindowState = FormWindowState.Normal;
+            _parentForm = parent;
         }
 
-        private void DinoJumpForm_Load(object sender, EventArgs e)
+        private void DinoJumpForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-
+            gameTimer?.Stop();
+            fontBig?.Dispose(); fontMed?.Dispose();
+            fontSmall?.Dispose(); fontTiny?.Dispose();
+            _parentForm?.Show();
         }
 
-        void CreateLevel()
-        {
-            ground = new Rectangle(0, this.ClientSize.Height - 50, this.ClientSize.Width + finishDistance + 1000, 45);
-            lastPlatformY = ground.Y - 80;
-        }
-
+        // ── GAME LOOP ────────────────────────────────────────────
         void GameLoop(object sender, EventArgs e)
         {
-            if (!gameStarted || gameFinished) return;
+            if (!gameStarted || isGameOver || hasWon || isPaused)
+            { this.Invalidate(); return; }
 
-            if (gameDistance >= finishDistance)
+            int gY = GROUND_Y;
+
+            // Fizika
+            dinoVY += gravity;
+            dinoY += dinoVY;
+
+            if (dinoY >= gY - DINO_H)
             {
-                gameFinished = true;
-                gameTimer.Stop();
-                PlayWinSound();
-                ShowWinDialog();
-                return;
+                dinoY = gY - DINO_H;
+                dinoVY = 0;
+                onGround = true;
+                doubleJump = false;
             }
 
-            // LOJTARI NUK LËVIZET HORIZONTALISHT MË!
-            // Vetëm objektet lëvizin dhe krijojnë iluzionin e lëvizjes
+            if (onGround) legAnim = (legAnim + 1) % 20;
+            else legAnim = 0;
 
-            // FIZIKA E KËRCIMIT (VETËM VERTIKAL)
-            player.Y += jumpSpeed;
+            if (flashTimer > 0) flashTimer--;
 
-            if (jumping && force > 0)
-            {
-                jumpSpeed = -12;
-                force--;
-            }
-            else
-            {
-                jumpSpeed = 10;
-            }
+            worldOffset += WORLD_SPEED;
 
-            // COLLISION ME TOKË
-            if (player.IntersectsWith(ground) && jumpSpeed >= 0 && player.Bottom >= ground.Y)
+            // Shpejtësia e kaktuasve rritet me kohën
+            float difficulty = 1f + worldOffset / 10000f; // bëhet 2.8x harder në fund
+
+            // ── PLATFORMAT ──
+            spawnPlatTimer++;
+            if (spawnPlatTimer > rnd.Next(100, 180))
             {
-                force = 14;
-                player.Y = ground.Y - player.Height;
-                jumpSpeed = 0;
-                jumping = false;
+                spawnPlatTimer = 0;
+                float platY = gY - rnd.Next(90, 220);
+                float platW = rnd.Next(120, 260); // platforma MË TË GJERA
+                platforms.Add(new Platform { X = SCREEN_W + worldOffset, Y = platY, W = platW });
             }
 
-            if (player.Y + player.Height > ground.Y)
-            {
-                player.Y = ground.Y - player.Height;
-                jumping = false;
-                jumpSpeed = 0;
-            }
-
-            if (player.Y < 0)
-                player.Y = 0;
-
-            // LËVIZJA E PLATFORMAVE (TË GJITHA OBJEKTET LËVIZIN MAJTAS)
             for (int i = platforms.Count - 1; i >= 0; i--)
             {
                 var p = platforms[i];
-                p.X -= 5;
+                if (p.W > 1000) continue; // toka bazë - skip collision (bëhet nga gY)
 
-                if (player.IntersectsWith(p) && jumpSpeed >= 0 && player.Bottom <= p.Y + 10)
+                float px = p.X - worldOffset;
+
+                float dinoL = DINO_SCREEN_X + 6;
+                float dinoR = DINO_SCREEN_X + DINO_W - 6;
+                float dinoB = dinoY + DINO_H;
+                float dinoT = dinoY;
+
+                if (dinoVY >= 0 &&
+                    dinoR > px && dinoL < px + p.W &&
+                    dinoB > p.Y && dinoB < p.Y + 22 &&
+                    dinoT < p.Y)
                 {
-                    force = 14;
-                    player.Y = p.Y - player.Height;
-                    jumpSpeed = 0;
-                    jumping = false;
+                    dinoY = p.Y - DINO_H;
+                    dinoVY = 0;
+                    onGround = true;
+                    doubleJump = false;
                 }
 
-                if (p.Right < 0)
-                    platforms.RemoveAt(i);
-                else
-                    platforms[i] = p;
+                if (px + p.W < -150) platforms.RemoveAt(i);
             }
 
-            // MONEDHAT - LËVIZIN MAJTAS
+            // ── COINS ──
+            spawnCoinTimer++;
+            if (spawnCoinTimer > rnd.Next(25, 60))
+            {
+                spawnCoinTimer = 0;
+                float cy = rnd.Next(0, 3) == 0
+                    ? gY - rnd.Next(120, 230)
+                    : gY - 55;
+                coins.Add(new Coin { X = SCREEN_W + worldOffset, Y = cy });
+            }
+
             for (int i = coins.Count - 1; i >= 0; i--)
             {
                 var c = coins[i];
-                c.X -= 5;
+                if (c.Taken) { coins.RemoveAt(i); continue; }
+                float cx = c.X - worldOffset;
 
-                if (player.IntersectsWith(c))
+                if (cx + 16 > DINO_SCREEN_X + 8 && cx < DINO_SCREEN_X + DINO_W - 8 &&
+                    c.Y + 16 > dinoY + 8 && c.Y < dinoY + DINO_H - 8)
                 {
-                    coins.RemoveAt(i);
+                    c.Taken = true;
+                    coins[i] = c;
                     score += 10;
-                    PlayCoinSound();
+                    PlayCoin();
+                    for (int k = 0; k < 6; k++)
+                        particles.Add(new Particle
+                        {
+                            X = cx + 8,
+                            Y = c.Y + 8,
+                            VX = (float)(rnd.NextDouble() - 0.5) * 6,
+                            VY = (float)(rnd.NextDouble() - 0.5) * 6,
+                            Life = 1f,
+                            Color = Color.Gold
+                        });
                     continue;
                 }
-
-                if (c.Right < 0)
-                    coins.RemoveAt(i);
-                else
-                    coins[i] = c;
+                if (cx < -50) coins.RemoveAt(i);
             }
 
-            // ARMIQTË - LËVIZIN MAJTAS
+            // ── ARMIQTË - MË SHUMË KAKTUSA ──
+            spawnEnemTimer++;
+            // Interval zvogëlohet me difficulty - kaktusa dalin MË SHPESH
+            int spawnInterval = (int)(Math.Max(30, 90 / difficulty));
+            if (spawnEnemTimer > spawnInterval)
+            {
+                spawnEnemTimer = 0;
+                // 70% kaktus, 30% zog
+                int type = rnd.Next(0, 10) < 7 ? 0 : 1;
+                float ey = type == 0
+                    ? gY - 55
+                    : gY - rnd.Next(160, 300);
+
+                // Ndonjëherë shfaqen 2 kaktusa radhazi!
+                enemies.Add(new Enemy { X = SCREEN_W + worldOffset, Y = ey, Type = type });
+                if (type == 0 && rnd.Next(0, 3) == 0 && difficulty > 1.5f)
+                    enemies.Add(new Enemy
+                    {
+                        X = SCREEN_W + worldOffset + 70,
+                        Y = ey,
+                        Type = 0
+                    }); // kaktus çift
+            }
+
             for (int i = enemies.Count - 1; i >= 0; i--)
             {
                 var en = enemies[i];
-                en.X -= 6;
+                float ex = en.X - worldOffset;
 
-                if (player.IntersectsWith(en))
+                int ew = en.Type == 0 ? 38 : 44;
+                int eh = en.Type == 0 ? 55 : 28;
+
+                if (ex + ew > DINO_SCREEN_X + 10 && ex < DINO_SCREEN_X + DINO_W - 10 &&
+                    en.Y + eh > dinoY + 10 && en.Y < dinoY + DINO_H - 6)
                 {
+                    flashTimer = 10;
+                    isGameOver = true;
                     gameTimer.Stop();
-                    PlayGameOverSound();
-                    ShowGameOverDialog();
+                    PlayDie();
+                    this.Invalidate();
                     return;
                 }
 
-                if (en.Right < 0)
-                    enemies.RemoveAt(i);
-                else
-                    enemies[i] = en;
+                if (ex < -100) enemies.RemoveAt(i);
             }
 
-            // SPAWN OBJEKTEVE
-            SpawnObjects();
+            // Particles
+            for (int i = particles.Count - 1; i >= 0; i--)
+            {
+                var p = particles[i];
+                p.X += p.VX; p.Y += p.VY;
+                p.VY += 0.2f; p.Life -= 0.05f;
+                if (p.Life <= 0) particles.RemoveAt(i);
+                else particles[i] = p;
+            }
 
-            // Rrit distancën e udhëtimit
-            gameDistance += 5;
+            score += 1;
+
+            if (worldOffset >= FINISH_DIST)
+            {
+                hasWon = true;
+                score += 2000;
+                gameTimer.Stop();
+                PlayWin();
+            }
 
             this.Invalidate();
         }
 
-        void SpawnObjects()
+        // ── VIZATIMI ─────────────────────────────────────────────
+        protected override void OnPaint(PaintEventArgs e)
         {
-            // Platformat
-            if (rnd.Next(0, 100) < 2)
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            int gY = GROUND_Y;
+
+            // SKY
+            using (var sky = new LinearGradientBrush(
+                new Rectangle(0, 0, SCREEN_W, SCREEN_H),
+                Color.FromArgb(135, 206, 250), Color.FromArgb(200, 230, 255), 90f))
+                g.FillRectangle(sky, 0, 0, SCREEN_W, SCREEN_H);
+
+            DrawClouds(g);
+
+            // PLATFORMAT
+            foreach (var p in platforms)
             {
-                int change = rnd.Next(-40, 40);
-                int newY = lastPlatformY + change;
+                if (p.W > 1000) continue;
+                float px = p.X - worldOffset;
+                if (px > SCREEN_W + 50 || px + p.W < -50) continue;
 
-                if (newY < 150) newY = 150;
-                if (newY > ground.Y - 70) newY = ground.Y - 70;
-
-                lastPlatformY = newY;
-
-                bool canSpawn = true;
-                foreach (var p in platforms)
-                {
-                    if (Math.Abs(p.X - this.ClientSize.Width) < 150)
-                    {
-                        canSpawn = false;
-                        break;
-                    }
-                }
-
-                if (canSpawn)
-                    platforms.Add(new Rectangle(this.ClientSize.Width, newY, 110, 20));
+                using (var brush = new LinearGradientBrush(
+                    new RectangleF(px, p.Y, p.W, 20),
+                    Color.FromArgb(101, 67, 33), Color.FromArgb(160, 100, 50), 90f))
+                    g.FillRectangle(brush, px, p.Y, p.W, 20);
+                g.DrawRectangle(new Pen(Color.FromArgb(80, 40, 10), 1), px, p.Y, p.W, 20);
+                g.FillRectangle(new SolidBrush(Color.FromArgb(80, 180, 60)), px, p.Y - 5, p.W, 7);
             }
 
-            // Monedhat
-            if (rnd.Next(0, 100) < 4)
+            DrawGround(g, gY);
+
+            // COINS
+            foreach (var c in coins)
             {
-                bool onPlatform = rnd.Next(0, 2) == 0 && platforms.Count > 0;
-                int coinY;
-
-                if (onPlatform && platforms.Count > 0)
-                {
-                    var platform = platforms[rnd.Next(platforms.Count)];
-                    coinY = platform.Y - 30;
-                }
-                else
-                {
-                    coinY = ground.Y - 35;
-                }
-
-                bool canSpawnCoin = true;
-                foreach (var c in coins)
-                {
-                    if (Math.Abs(c.X - this.ClientSize.Width) < 100)
-                    {
-                        canSpawnCoin = false;
-                        break;
-                    }
-                }
-
-                foreach (var en in enemies)
-                {
-                    if (Math.Abs(en.X - this.ClientSize.Width) < 80 && Math.Abs(en.Y - coinY) < 50)
-                    {
-                        canSpawnCoin = false;
-                        break;
-                    }
-                }
-
-                if (canSpawnCoin)
-                {
-                    coins.Add(new Rectangle(this.ClientSize.Width, coinY, 30, 30));
-                }
+                float cx = c.X - worldOffset;
+                if (cx < -30 || cx > SCREEN_W + 30) continue;
+                DrawCoin(g, cx, c.Y);
             }
 
-            // Armiqtë
-            if (rnd.Next(0, 100) < 2)
+            // ARMIQTË
+            foreach (var en in enemies)
             {
-                int enemyY = ground.Y - 45;
-
-                bool canSpawnEnemy = true;
-                foreach (var c in coins)
-                {
-                    if (Math.Abs(c.X - this.ClientSize.Width) < 100 && Math.Abs(c.Y - enemyY) < 50)
-                    {
-                        canSpawnEnemy = false;
-                        break;
-                    }
-                }
-
-                foreach (var en in enemies)
-                {
-                    if (Math.Abs(en.X - this.ClientSize.Width) < 150)
-                    {
-                        canSpawnEnemy = false;
-                        break;
-                    }
-                }
-
-                if (canSpawnEnemy)
-                {
-                    enemies.Add(new Rectangle(this.ClientSize.Width, enemyY, 45, 45));
-                }
+                float ex = en.X - worldOffset;
+                if (ex < -80 || ex > SCREEN_W + 80) continue;
+                if (en.Type == 0) DrawCactus(g, ex, en.Y);
+                else DrawBird(g, ex, en.Y);
             }
+
+            // PARTICLES
+            foreach (var p in particles)
+            {
+                int alpha = (int)(p.Life * 255);
+                using (var b = new SolidBrush(Color.FromArgb(alpha, p.Color)))
+                    g.FillEllipse(b, p.X - 4, p.Y - 4, 8, 8);
+            }
+
+            // DINO
+            if (!(flashTimer > 0 && flashTimer % 2 == 0))
+                DrawDino(g, DINO_SCREEN_X, (int)dinoY, onGround, legAnim, isGameOver);
+
+            DrawFinishLine(g, gY);
+            DrawUI(g, gY);
+
+            if (!gameStarted) DrawStartScreen(g);
+            if (isPaused) DrawPauseScreen(g);
+            if (isGameOver) DrawGameOverScreen(g);
+            if (hasWon) DrawWinScreen(g);
         }
 
-        void ShowGameOverDialog()
+        // ── DINO ────────────────────────────────────────────────
+        void DrawDino(Graphics g, int x, int y, bool onGnd, int anim, bool dead)
         {
-            DialogResult result = MessageBox.Show(
-                "💀 GAME OVER 💀\n\n" +
-                $"🎯 Score: {score}\n" +
-                $"📏 Distance: {gameDistance}/{finishDistance}\n\n" +
-                "Dëshiron të luash përsëri?",
-                "Game Over",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+            Color bodyColor = dead ? Color.Gray : Color.FromArgb(80, 180, 80);
+            Color darkColor = dead ? Color.DimGray : Color.FromArgb(50, 130, 50);
+            Color bellyColor = dead ? Color.LightGray : Color.FromArgb(180, 230, 150);
 
-            if (result == DialogResult.Yes)
-                RestartGame();
+            // Bishti
+            PointF[] tail = {
+                new PointF(x + 4,  y + 42),
+                new PointF(x - 18, y + 52),
+                new PointF(x - 10, y + 38),
+                new PointF(x + 8,  y + 36),
+            };
+            g.FillPolygon(new SolidBrush(darkColor), tail);
+
+            // Trupi
+            g.FillEllipse(new SolidBrush(bodyColor), x + 2, y + 22, DINO_W - 8, DINO_H - 30);
+            g.FillEllipse(new SolidBrush(bellyColor), x + 14, y + 30, 24, 20);
+
+            // Koka
+            g.FillEllipse(new SolidBrush(bodyColor), x + 24, y, 26, 26);
+            PointF[] jaw = {
+                new PointF(x + 26, y + 18),
+                new PointF(x + 50, y + 18),
+                new PointF(x + 52, y + 26),
+                new PointF(x + 26, y + 24),
+            };
+            g.FillPolygon(new SolidBrush(bodyColor), jaw);
+            g.FillEllipse(new SolidBrush(bellyColor), x + 30, y + 16, 16, 10);
+
+            // Sy
+            if (dead)
+            {
+                using (var p = new Pen(Color.Red, 2))
+                {
+                    g.DrawLine(p, x + 33, y + 5, x + 38, y + 10);
+                    g.DrawLine(p, x + 38, y + 5, x + 33, y + 10);
+                }
+            }
             else
-                this.Close();
-        }
+            {
+                g.FillEllipse(Brushes.White, x + 32, y + 4, 10, 10);
+                g.FillEllipse(Brushes.Black, x + 34, y + 6, 6, 6);
+                g.FillEllipse(Brushes.White, x + 35, y + 6, 2, 2);
+            }
 
-        void ShowWinDialog()
-        {
-            DialogResult result = MessageBox.Show(
-                "🏆 VICTORY! 🏆\n\n" +
-                $"✨ Score total: {score} ✨\n" +
-                $"🎉 Ke përfunduar lojën me sukses! 🎉\n\n" +
-                "Dëshiron të luash përsëri?",
-                "YOU WIN!",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information);
+            g.FillEllipse(new SolidBrush(darkColor), x + 44, y + 10, 3, 3);
+            g.FillEllipse(new SolidBrush(darkColor), x + 20, y + 28, 14, 10);
+            g.FillEllipse(new SolidBrush(darkColor), x + 28, y + 35, 8, 6);
 
-            if (result == DialogResult.Yes)
-                RestartGame();
+            // Thumbat shpinë
+            // Pas - thumbat lëvizin 20px më lart (y + 2 dhe y - 8):
+            for (int i = 4; i > 0; i--)
+            {
+                PointF[] spike = {
+        new PointF(x + 18 + i * 6, y + 2),   // ishte y + 22
+        new PointF(x + 21 + i * 6, y - 8),   // ishte y + 12
+        new PointF(x + 24 + i * 6, y + 2),   // ishte y + 22
+    };
+                g.FillPolygon(new SolidBrush(darkColor), spike);
+            }
+
+            // Këmbët
+            if (onGnd)
+            {
+                int l1 = (anim < 10) ? 6 : -2;
+                int l2 = (anim < 10) ? -2 : 6;
+                DrawLeg(g, x + 8, y + 50, l1, darkColor, bodyColor);
+                DrawLeg(g, x + 20, y + 50, l2, darkColor, bodyColor);
+            }
             else
-                this.Close();
+            {
+                DrawLeg(g, x + 8, y + 50, -4, darkColor, bodyColor);
+                DrawLeg(g, x + 20, y + 50, -4, darkColor, bodyColor);
+            }
         }
+
+        void DrawLeg(Graphics g, float x, float y, int off, Color dark, Color main)
+        {
+            g.FillEllipse(new SolidBrush(main), x, y + off, 12, 18);
+            g.FillEllipse(new SolidBrush(dark), x + 1, y + off + 14, 10, 10);
+            PointF[] foot = {
+                new PointF(x,      y + off + 20),
+                new PointF(x + 12, y + off + 20),
+                new PointF(x + 16, y + off + 28),
+                new PointF(x - 2,  y + off + 28),
+            };
+            g.FillPolygon(new SolidBrush(dark), foot);
+        }
+
+        void DrawCactus(Graphics g, float x, float y)
+        {
+            Color c = Color.FromArgb(34, 139, 34);
+            Color dc = Color.FromArgb(20, 100, 20);
+            g.FillRectangle(new SolidBrush(c), x + 12, y, 16, 56);
+            g.FillRectangle(new SolidBrush(c), x, y + 16, 12, 10);
+            g.FillRectangle(new SolidBrush(c), x, y + 8, 10, 20);
+            g.FillRectangle(new SolidBrush(c), x + 28, y + 16, 12, 10);
+            g.FillRectangle(new SolidBrush(c), x + 30, y + 8, 10, 20);
+            using (var p = new Pen(dc, 1.5f))
+            {
+                g.DrawLine(p, x + 12, y + 10, x + 8, y + 6);
+                g.DrawLine(p, x + 28, y + 10, x + 32, y + 6);
+                g.DrawLine(p, x + 20, y, x + 20, y - 6);
+            }
+        }
+
+        void DrawBird(Graphics g, float x, float y)
+        {
+            g.FillEllipse(Brushes.DarkSlateGray, x + 6, y + 4, 30, 20);
+            bool wingUp = (worldOffset / 8) % 2 == 0;
+            PointF[] wing = wingUp
+                ? new[] { new PointF(x + 10, y + 8), new PointF(x + 28, y + 8), new PointF(x + 20, y - 10) }
+                : new[] { new PointF(x + 10, y + 14), new PointF(x + 28, y + 14), new PointF(x + 20, y + 26) };
+            g.FillPolygon(Brushes.SlateGray, wing);
+            g.FillEllipse(Brushes.DarkSlateGray, x + 28, y, 18, 16);
+            g.FillEllipse(Brushes.White, x + 36, y + 3, 6, 6);
+            g.FillEllipse(Brushes.Black, x + 37, y + 4, 4, 4);
+            PointF[] beak = {
+                new PointF(x + 46, y + 8),
+                new PointF(x + 54, y + 10),
+                new PointF(x + 46, y + 12),
+            };
+            g.FillPolygon(Brushes.Orange, beak);
+        }
+
+        void DrawCoin(Graphics g, float x, float y)
+        {
+            using (var b = new LinearGradientBrush(
+                new RectangleF(x, y, 22, 22), Color.Gold, Color.DarkGoldenrod, 45f))
+                g.FillEllipse(b, x, y, 22, 22);
+            g.DrawEllipse(new Pen(Color.Orange, 1.5f), x, y, 22, 22);
+            g.DrawString("$", fontTiny, Brushes.White, x + 5, y + 4);
+        }
+
+        void DrawGround(Graphics g, int gY)
+        {
+            g.FillRectangle(new SolidBrush(Color.FromArgb(80, 180, 60)),
+                0, gY - 8, SCREEN_W, 12);
+            using (var b = new LinearGradientBrush(
+                new Rectangle(0, gY, SCREEN_W, SCREEN_H - gY),
+                Color.FromArgb(160, 100, 50), Color.FromArgb(101, 67, 33), 90f))
+                g.FillRectangle(b, 0, gY, SCREEN_W, SCREEN_H - gY);
+
+            int off = worldOffset % 60;
+            using (var p = new Pen(Color.FromArgb(120, 80, 30), 1))
+                for (int i = -60; i < SCREEN_W + 60; i += 60)
+                    g.DrawLine(p, i - off, gY + 8, i - off + 40, gY + 8);
+        }
+
+        void DrawClouds(Graphics g)
+        {
+            int[] cloudX = { 100, 350, 600, 850, 1100, 1350 };
+            int[] cloudY = { 60, 90, 50, 80, 70, 100 };
+            for (int i = 0; i < cloudX.Length; i++)
+            {
+                float cx = ((cloudX[i] - worldOffset * 0.2f) % (SCREEN_W + 200) + SCREEN_W + 200)
+                           % (SCREEN_W + 200) - 100;
+                DrawCloud(g, cx, cloudY[i]);
+            }
+        }
+
+        void DrawCloud(Graphics g, float x, float y)
+        {
+            using (var b = new SolidBrush(Color.FromArgb(220, 255, 255, 255)))
+            {
+                g.FillEllipse(b, x, y, 80, 44);
+                g.FillEllipse(b, x + 22, y - 16, 48, 36);
+                g.FillEllipse(b, x + 45, y, 55, 38);
+            }
+        }
+
+        void DrawFinishLine(Graphics g, int gY)
+        {
+            float fx = FINISH_DIST - worldOffset + DINO_SCREEN_X;
+            if (fx < -50 || fx > SCREEN_W + 50) return;
+
+            for (int i = 0; i < SCREEN_H; i += 20)
+            {
+                bool white = (i / 20) % 2 == 0;
+                g.FillRectangle(white ? Brushes.White : Brushes.Black, fx, i, 18, 20);
+            }
+            using (var p = new Pen(Color.White, 4))
+                g.DrawLine(p, fx + 9, 0, fx + 9, 110);
+
+            PointF[] flag = {
+                new PointF(fx + 9, 12),
+                new PointF(fx + 55, 30),
+                new PointF(fx + 9, 48),
+            };
+            g.FillPolygon(Brushes.Red, flag);
+
+            float dist = FINISH_DIST - worldOffset;
+            if (dist > 0 && dist < 700)
+            {
+                SizeF ts = g.MeasureString("FINISH!", fontMed);
+                g.DrawString("FINISH!", fontMed, Brushes.Black, fx - ts.Width / 2 + 1, 58);
+                g.DrawString("FINISH!", fontMed, Brushes.Yellow, fx - ts.Width / 2, 56);
+            }
+        }
+
+        // ── UI ───────────────────────────────────────────────────
+        void DrawUI(Graphics g, int gY)
+        {
+            // Score panel
+            using (var b = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
+                g.FillRectangle(b, 8, 8, 230, 58);
+            g.DrawString($"SCORE: {score}", fontSmall, Brushes.Gold, 15, 14);
+            g.DrawString($"COINS: {score / 10}", fontSmall, Brushes.Yellow, 15, 36);
+
+            // EXIT BUTTON
+            Rectangle exitBtn = new Rectangle(SCREEN_W - 145, 8, 135, 38);
+            using (var b = new SolidBrush(Color.FromArgb(200, 160, 30, 30)))
+                g.FillRectangle(b, exitBtn);
+            g.DrawRectangle(Pens.Red, exitBtn);
+            SizeF es = g.MeasureString("EXIT TO MENU", fontTiny);
+            g.DrawString("EXIT TO MENU", fontTiny, Brushes.White,
+                exitBtn.X + (exitBtn.Width - es.Width) / 2,
+                exitBtn.Y + (exitBtn.Height - es.Height) / 2);
+
+            // PAUSE BUTTON
+            Rectangle pauseBtn = new Rectangle(SCREEN_W - 290, 8, 135, 38);
+            using (var b = new SolidBrush(Color.FromArgb(200, 0, 0, 0)))
+                g.FillRectangle(b, pauseBtn);
+            g.DrawRectangle(isPaused ? Pens.LimeGreen : Pens.White, pauseBtn);
+            string pl = isPaused ? "▶ RESUME" : "⏸ PAUSE";
+            SizeF ps2 = g.MeasureString(pl, fontTiny);
+            g.DrawString(pl, fontTiny, isPaused ? Brushes.LimeGreen : Brushes.White,
+                pauseBtn.X + (pauseBtn.Width - ps2.Width) / 2,
+                pauseBtn.Y + (pauseBtn.Height - ps2.Height) / 2);
+
+            // Progress bar
+            int barW = SCREEN_W - 600;
+            int barX = 250;
+            int barY = 16;
+            float prog = Math.Min(1f, (float)worldOffset / FINISH_DIST);
+            int fill = (int)(barW * prog);
+
+            using (var b = new SolidBrush(Color.FromArgb(160, 0, 0, 0)))
+                g.FillRectangle(b, barX, barY, barW, 22);
+            if (fill > 0)
+            {
+                Color fc = prog < 0.5f
+                    ? Color.FromArgb(50, (int)(255 * prog * 2), 50)
+                    : Color.FromArgb((int)(255 * (prog - 0.5f) * 2), 200, 50);
+                using (var b = new SolidBrush(fc))
+                    g.FillRectangle(b, barX, barY, fill, 22);
+            }
+            g.DrawRectangle(Pens.White, barX, barY, barW, 22);
+
+            using (var f = new Font("Arial", 9))
+            {
+                g.DrawString("🦖", f, Brushes.White, barX + fill - 10, barY - 14);
+                g.DrawString("🏁", f, Brushes.White, barX + barW + 2, barY - 2);
+            }
+            string pct = $"{(int)(prog * 100)}%";
+            SizeF pts = g.MeasureString(pct, fontTiny);
+            g.DrawString(pct, fontTiny, Brushes.White,
+                barX + (barW - pts.Width) / 2, barY + 4);
+
+            // Difficulty tregues
+            float diff = 1f + worldOffset / 10000f;
+            string dlbl = diff < 1.5f ? "EASY" : diff < 2f ? "MEDIUM" : diff < 2.5f ? "HARD" : "EXTREME!";
+            Color dc = diff < 1.5f ? Color.LimeGreen : diff < 2f ? Color.Yellow : diff < 2.5f ? Color.Orange : Color.Red;
+            g.DrawString($"⚡ {dlbl}", fontTiny, new SolidBrush(dc), barX + barW / 2 - 25, barY + 26);
+
+            // Kontrollet
+            using (var b = new SolidBrush(Color.FromArgb(140, 0, 0, 0)))
+                g.FillRectangle(b, 8, SCREEN_H - 28, 380, 22);
+            g.DrawString("SPACE = Kërce  (2x = double jump)   P = Pause",
+                fontTiny, Brushes.LightGray, 12, SCREEN_H - 26);
+        }
+
+        // ── MOUSE CLICK për butona ───────────────────────────────
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+
+            Rectangle exitBtn = new Rectangle(SCREEN_W - 145, 8, 135, 38);
+            Rectangle pauseBtn = new Rectangle(SCREEN_W - 290, 8, 135, 38);
+
+            if (exitBtn.Contains(e.Location))
+            {
+                gameTimer.Stop();
+                _parentForm?.Show();
+                this.Close();
+                return;
+            }
+
+            if (pauseBtn.Contains(e.Location) && gameStarted && !isGameOver && !hasWon)
+            {
+                isPaused = !isPaused;
+                this.Invalidate();
+            }
+        }
+
+        // ── EKRANET ─────────────────────────────────────────────
+        void DrawStartScreen(Graphics g)
+        {
+            using (var b = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
+                g.FillRectangle(b, 0, 0, SCREEN_W, SCREEN_H);
+
+            int bw = 580, bh = 360;
+            int bx = (SCREEN_W - bw) / 2, by = (SCREEN_H - bh) / 2;
+            using (var b = new SolidBrush(Color.FromArgb(220, 20, 40, 20)))
+                g.FillRectangle(b, bx, by, bw, bh);
+            using (var p = new Pen(Color.Gold, 3))
+                g.DrawRectangle(p, bx, by, bw, bh);
+
+            string t = "🦖 DINO ADVENTURE 🦖";
+            SizeF ts = g.MeasureString(t, fontBig);
+            g.DrawString(t, fontBig, Brushes.Black, (SCREEN_W - ts.Width) / 2 + 2, by + 17);
+            g.DrawString(t, fontBig, Brushes.Gold, (SCREEN_W - ts.Width) / 2, by + 15);
+
+            DrawDino(g, SCREEN_W / 2 - 26, by + 85, true, (worldOffset / 3) % 20, false);
+
+            string[] lines = {
+                "• SPACE = Kërce  (dy herë = double jump!)",
+                "• Mblidh monedhat ari  +10 pikë",
+                "• Shmang kaktusat dhe zogjtë",
+                "• Kaktusat bëhen MË TË SHPEJTË me kohën!",
+                "• Arri në FINISH LINE pas 18000 hapa!",
+                "",
+                "▶  Shtyp ENTER ose SPACE për të filluar"
+            };
+            int ly = by + 178;
+            foreach (var line in lines)
+            {
+                SizeF ls = g.MeasureString(line, fontSmall);
+                Color lc = line.Contains("ENTER") ? Color.Yellow
+                         : line.Contains("shpejtë") ? Color.OrangeRed
+                         : line.Contains("monedhat") ? Color.Gold : Color.White;
+                g.DrawString(line, fontSmall, new SolidBrush(lc),
+                    (SCREEN_W - ls.Width) / 2, ly);
+                ly += 26;
+            }
+        }
+
+        void DrawPauseScreen(Graphics g)
+        {
+            using (var b = new SolidBrush(Color.FromArgb(150, 0, 0, 0)))
+                g.FillRectangle(b, 0, 0, SCREEN_W, SCREEN_H);
+            SizeF ps = g.MeasureString("PAUSED", fontBig);
+            g.DrawString("PAUSED", fontBig, Brushes.Black,
+                (SCREEN_W - ps.Width) / 2 + 2, SCREEN_H / 2 - 42);
+            g.DrawString("PAUSED", fontBig, Brushes.Orange,
+                (SCREEN_W - ps.Width) / 2, SCREEN_H / 2 - 44);
+            SizeF ss = g.MeasureString("Shtyp P ose klik RESUME", fontMed);
+            g.DrawString("Shtyp P ose klik RESUME", fontMed, Brushes.White,
+                (SCREEN_W - ss.Width) / 2, SCREEN_H / 2 + 10);
+        }
+
+        void DrawGameOverScreen(Graphics g)
+        {
+            using (var b = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
+                g.FillRectangle(b, 0, 0, SCREEN_W, SCREEN_H);
+
+            int bw = 460, bh = 260;
+            int bx = (SCREEN_W - bw) / 2, by = (SCREEN_H - bh) / 2;
+            using (var b = new SolidBrush(Color.FromArgb(220, 60, 0, 0)))
+                g.FillRectangle(b, bx, by, bw, bh);
+            using (var p = new Pen(Color.Red, 2))
+                g.DrawRectangle(p, bx, by, bw, bh);
+
+            DrawDino(g, SCREEN_W / 2 - 26, by + 12, false, 0, true);
+
+            SizeF gs = g.MeasureString("GAME OVER", fontBig);
+            g.DrawString("GAME OVER", fontBig, Brushes.Black,
+                (SCREEN_W - gs.Width) / 2 + 2, by + 88);
+            g.DrawString("GAME OVER", fontBig, Brushes.Red,
+                (SCREEN_W - gs.Width) / 2, by + 86);
+
+            string sc = $"Score: {score}   Coins: {score / 10}";
+            SizeF ss = g.MeasureString(sc, fontMed);
+            g.DrawString(sc, fontMed, Brushes.Yellow,
+                (SCREEN_W - ss.Width) / 2, by + 148);
+
+            string rs = "Shtyp ENTER / SPACE për të rinisur";
+            SizeF rss = g.MeasureString(rs, fontSmall);
+            g.DrawString(rs, fontSmall, Brushes.LightGray,
+                (SCREEN_W - rss.Width) / 2, by + 200);
+        }
+
+        void DrawWinScreen(Graphics g)
+        {
+            using (var b = new SolidBrush(Color.FromArgb(200, 0, 60, 0)))
+                g.FillRectangle(b, 0, 0, SCREEN_W, SCREEN_H);
+
+            int bw = 540, bh = 300;
+            int bx = (SCREEN_W - bw) / 2, by = (SCREEN_H - bh) / 2;
+            using (var b = new SolidBrush(Color.FromArgb(220, 0, 80, 0)))
+                g.FillRectangle(b, bx, by, bw, bh);
+            using (var p = new Pen(Color.Gold, 3))
+                g.DrawRectangle(p, bx, by, bw, bh);
+
+            string win = "🏆 YOU WIN! 🏆";
+            SizeF ws = g.MeasureString(win, fontBig);
+            g.DrawString(win, fontBig, Brushes.Black,
+                (SCREEN_W - ws.Width) / 2 + 2, by + 17);
+            g.DrawString(win, fontBig, Brushes.Gold,
+                (SCREEN_W - ws.Width) / 2, by + 15);
+
+            DrawDino(g, SCREEN_W / 2 - 26, by + 80, true, (worldOffset / 3) % 20, false);
+
+            string sub = "Ke arritur në FINISH LINE!";
+            SizeF ss = g.MeasureString(sub, fontMed);
+            g.DrawString(sub, fontMed, Brushes.White,
+                (SCREEN_W - ss.Width) / 2, by + 168);
+
+            string sc = $"Score Final: {score}   Coins: {score / 10}";
+            SizeF scs = g.MeasureString(sc, fontMed);
+            g.DrawString(sc, fontMed, Brushes.Yellow,
+                (SCREEN_W - scs.Width) / 2, by + 206);
+
+            string rs = "Shtyp ENTER për të luajtur përsëri";
+            SizeF rss = g.MeasureString(rs, fontSmall);
+            g.DrawString(rs, fontSmall, Brushes.Cyan,
+                (SCREEN_W - rss.Width) / 2, by + 252);
+        }
+
+        // ── INPUT ────────────────────────────────────────────────
+        void DinoJumpForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (!gameStarted && (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space))
+            {
+                gameStarted = true;
+                gameTimer.Start();
+                return;
+            }
+
+            if ((isGameOver || hasWon) && (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space))
+            {
+                RestartGame();
+                return;
+            }
+
+            if (e.KeyCode == Keys.P && gameStarted && !isGameOver && !hasWon)
+            {
+                isPaused = !isPaused;
+                this.Invalidate();
+                return;
+            }
+
+            if ((e.KeyCode == Keys.Space || e.KeyCode == Keys.Up) &&
+                gameStarted && !isGameOver && !hasWon && !isPaused)
+            {
+                if (onGround)
+                {
+                    dinoVY = jumpForce;
+                    onGround = false;
+                    doubleJump = true;
+                    PlayJump();
+                }
+                else if (doubleJump)
+                {
+                    dinoVY = jumpForce * 0.85f;
+                    doubleJump = false;
+                    PlayJump();
+                    for (int k = 0; k < 8; k++)
+                        particles.Add(new Particle
+                        {
+                            X = DINO_SCREEN_X + DINO_W / 2,
+                            Y = dinoY + DINO_H,
+                            VX = (float)(rnd.NextDouble() - 0.5) * 5,
+                            VY = (float)rnd.NextDouble() * 3 + 1,
+                            Life = 1f,
+                            Color = Color.LightGreen
+                        });
+                }
+            }
+        }
+
+        void DinoJumpForm_KeyUp(object sender, KeyEventArgs e) { }
 
         void RestartGame()
         {
             platforms.Clear();
             coins.Clear();
             enemies.Clear();
+            particles.Clear();
 
+            platforms.Add(new Platform { X = -200, Y = 0, W = 99999 });
+
+            dinoY = GROUND_Y - DINO_H;
+            dinoVY = 0;
+            onGround = true;
+            doubleJump = false;
             score = 0;
-            gameDistance = 0;
-            gameFinished = false;
-            jumping = false;
-            force = 14;
-            jumpSpeed = 0;
-            player.X = playerScreenX; // Pozicioni fiks në ekran
-            player.Y = ground.Y - player.Height;
+            worldOffset = 0;
+            isGameOver = false;
+            hasWon = false;
+            isPaused = false;
+            flashTimer = 0;
+            legAnim = 0;
+            spawnPlatTimer = 0;
+            spawnCoinTimer = 0;
+            spawnEnemTimer = 0;
 
-            CreateLevel();
-
+            gameTimer.Interval = 16;
             gameTimer.Start();
-
-            this.Invalidate();
         }
 
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.Clear(Color.SkyBlue);
-
-            // Vizatimi i tokës
-            using (Brush groundBrush = new SolidBrush(Color.FromArgb(139, 69, 19)))
-            {
-                g.FillRectangle(groundBrush, ground);
-            }
-
-            using (Pen darkPen = new Pen(Color.FromArgb(101, 67, 33), 2))
-            {
-                for (int i = 0; i < ground.Width; i += 50)
-                {
-                    g.DrawLine(darkPen, ground.X + i, ground.Y + 10, ground.X + i + 30, ground.Y + 10);
-                }
-            }
-
-            // Platformat
-            foreach (var p in platforms)
-            {
-                using (Brush platformBrush = new SolidBrush(Color.FromArgb(160, 82, 45)))
-                {
-                    g.FillRectangle(platformBrush, p);
-                }
-                g.DrawRectangle(Pens.Brown, p);
-            }
-
-            // Monedhat
-            foreach (var c in coins)
-            {
-                using (Brush goldBrush = new SolidBrush(Color.Gold))
-                {
-                    g.FillEllipse(goldBrush, c);
-                }
-                g.DrawEllipse(Pens.Orange, c);
-                using (Font smallFont = new Font("Arial", 12, FontStyle.Bold))
-                {
-                    g.DrawString("$", smallFont, Brushes.DarkGoldenrod, c.X + 8, c.Y + 5);
-                }
-            }
-
-            // Armiqtë
-            foreach (var en in enemies)
-            {
-                using (Brush enemyBrush = new SolidBrush(Color.DarkRed))
-                {
-                    g.FillRectangle(enemyBrush, en);
-                }
-                g.DrawRectangle(Pens.Black, en);
-                g.FillEllipse(Brushes.White, en.X + 10, en.Y + 10, 8, 8);
-                g.FillEllipse(Brushes.White, en.X + 27, en.Y + 10, 8, 8);
-                g.FillEllipse(Brushes.Black, en.X + 12, en.Y + 12, 4, 4);
-                g.FillEllipse(Brushes.Black, en.X + 29, en.Y + 12, 4, 4);
-            }
-
-            // Lojtari (në pozicion fiks)
-            using (Brush playerBrush = new SolidBrush(Color.Green))
-            {
-                g.FillRectangle(playerBrush, player);
-            }
-            g.DrawRectangle(Pens.DarkGreen, player);
-            g.FillEllipse(Brushes.White, player.X + 35, player.Y + 15, 8, 8);
-            g.FillEllipse(Brushes.White, player.X + 45, player.Y + 15, 8, 8);
-            g.FillEllipse(Brushes.Black, player.X + 37, player.Y + 17, 4, 4);
-            g.FillEllipse(Brushes.Black, player.X + 47, player.Y + 17, 4, 4);
-
-            // Vizato thumbat e dino-s
-            g.FillPolygon(Brushes.DarkGreen, new Point[] {
-                new Point(player.X + 10, player.Y + 10),
-                new Point(player.X + 20, player.Y + 5),
-                new Point(player.X + 15, player.Y + 15)
-            });
-
-            // Score Panel
-            using (Brush panelBrush = new SolidBrush(Color.FromArgb(200, 0, 0, 0)))
-            {
-                g.FillRectangle(panelBrush, 10, 10, 220, 50);
-            }
-            g.DrawString($"💰 Score: {score}", new Font("Arial", 18, FontStyle.Bold), Brushes.Gold, 20, 20);
-
-            // Distance Progress
-            int progressWidth = (int)((double)gameDistance / finishDistance * 300);
-            g.FillRectangle(Brushes.Gray, this.ClientSize.Width - 320, 20, 300, 20);
-            g.FillRectangle(Brushes.Green, this.ClientSize.Width - 320, 20, progressWidth, 20);
-            g.DrawString($"📏 {gameDistance}/{finishDistance}", new Font("Arial", 10, FontStyle.Bold), Brushes.White, this.ClientSize.Width - 310, 25);
-
-            // Finish Line
-            if (gameDistance > finishDistance - 800)
-            {
-                for (int i = 0; i < this.ClientSize.Height; i += 40)
-                {
-                    g.FillRectangle(Brushes.White, this.ClientSize.Width - 50, i, 15, 25);
-                    g.FillRectangle(Brushes.Black, this.ClientSize.Width - 50, i + 25, 15, 25);
-                }
-                g.DrawString("🏁 FINISH 🏁", new Font("Arial", 14, FontStyle.Bold), Brushes.White, this.ClientSize.Width - 100, this.ClientSize.Height / 2 - 10);
-            }
-
-            if (!gameStarted && startPanel == null)
-            {
-                string msg = "SHTYP ENTER PËR TË FILLUAR";
-                SizeF msgSize = g.MeasureString(msg, new Font("Arial", 24, FontStyle.Bold));
-                g.DrawString(msg, new Font("Arial", 24, FontStyle.Bold), Brushes.White,
-                    (this.ClientSize.Width - msgSize.Width) / 2, this.ClientSize.Height / 2);
-            }
-        }
-
-        void KeyIsDown(object sender, KeyEventArgs e)
-        {
-            if (!gameStarted && e.KeyCode == Keys.Enter)
-            {
-                StartGame();
-                return;
-            }
-
-            if (!gameStarted) return;
-
-            // VETËM KËRCIMI - PA LËVIZJE HORIZONTALE TË DINOS
-            if (e.KeyCode == Keys.Space && !jumping && player.Y + player.Height >= ground.Y - 5)
-            {
-                jumping = true;
-                force = 14;
-                jumpSpeed = -12;
-                PlayJumpSound();
-            }
-        }
-
-        void KeyIsUp(object sender, KeyEventArgs e)
-        {
-            // Nuk kemi nevojë për goLeft/goRight më
-            if (e.KeyCode == Keys.Space)
-            {
-                // Kërcimi vazhdon vetë
-            }
-        }
+        private void DinoJumpForm_Load(object sender, EventArgs e) { }
     }
 }
