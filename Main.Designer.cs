@@ -34,6 +34,7 @@
             pictureMemory = new PictureBox();
             pictureDino = new PictureBox();
             HomePanel = new Panel();
+            pictureTetris = new PictureBox();
             pictureHill = new PictureBox();
             label1 = new Label();
             snakePanel = new Panel();
@@ -51,11 +52,15 @@
             hillPanel = new Panel();
             hillPlayButton = new PictureBox();
             hillBackButton = new PictureBox();
+            TetrisPanel = new Panel();
+            tetrisPlayButton = new PictureBox();
+            tetrisBackButton = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)pictureSnake).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureFlappy).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureMemory).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureDino).BeginInit();
             HomePanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureTetris).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureHill).BeginInit();
             snakePanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)playButton).BeginInit();
@@ -72,6 +77,9 @@
             hillPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)hillPlayButton).BeginInit();
             ((System.ComponentModel.ISupportInitialize)hillBackButton).BeginInit();
+            TetrisPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)tetrisPlayButton).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)tetrisBackButton).BeginInit();
             SuspendLayout();
             // 
             // pictureSnake
@@ -127,6 +135,7 @@
             HomePanel.BackColor = Color.Transparent;
             HomePanel.BackgroundImage = (Image)resources.GetObject("HomePanel.BackgroundImage");
             HomePanel.BackgroundImageLayout = ImageLayout.Stretch;
+            HomePanel.Controls.Add(pictureTetris);
             HomePanel.Controls.Add(pictureHill);
             HomePanel.Controls.Add(label1);
             HomePanel.Controls.Add(pictureSnake);
@@ -138,6 +147,18 @@
             HomePanel.Name = "HomePanel";
             HomePanel.Size = new Size(875, 459);
             HomePanel.TabIndex = 4;
+            // 
+            // pictureTetris
+            // 
+            pictureTetris.BackColor = Color.Transparent;
+            pictureTetris.BackgroundImage = (Image)resources.GetObject("pictureTetris.BackgroundImage");
+            pictureTetris.BackgroundImageLayout = ImageLayout.Stretch;
+            pictureTetris.Location = new Point(291, 269);
+            pictureTetris.Name = "pictureTetris";
+            pictureTetris.Size = new Size(156, 187);
+            pictureTetris.TabIndex = 6;
+            pictureTetris.TabStop = false;
+            pictureTetris.Click += pictureTetris_Click;
             // 
             // pictureHill
             // 
@@ -361,6 +382,45 @@
             hillBackButton.TabStop = false;
             hillBackButton.Click += hillBackButton_Click;
             // 
+            // TetrisPanel
+            // 
+            TetrisPanel.BackgroundImage = (Image)resources.GetObject("TetrisPanel.BackgroundImage");
+            TetrisPanel.BackgroundImageLayout = ImageLayout.Stretch;
+            TetrisPanel.Controls.Add(tetrisPlayButton);
+            TetrisPanel.Controls.Add(tetrisBackButton);
+            TetrisPanel.Dock = DockStyle.Fill;
+            TetrisPanel.Location = new Point(0, 0);
+            TetrisPanel.Name = "TetrisPanel";
+            TetrisPanel.Size = new Size(875, 459);
+            TetrisPanel.TabIndex = 20;
+            // 
+            // tetrisPlayButton
+            // 
+            tetrisPlayButton.Anchor = AnchorStyles.Bottom;
+            tetrisPlayButton.BackColor = Color.Transparent;
+            tetrisPlayButton.BackgroundImage = (Image)resources.GetObject("tetrisPlayButton.BackgroundImage");
+            tetrisPlayButton.BackgroundImageLayout = ImageLayout.Stretch;
+            tetrisPlayButton.Location = new Point(236, 327);
+            tetrisPlayButton.Name = "tetrisPlayButton";
+            tetrisPlayButton.Size = new Size(373, 120);
+            tetrisPlayButton.SizeMode = PictureBoxSizeMode.CenterImage;
+            tetrisPlayButton.TabIndex = 3;
+            tetrisPlayButton.TabStop = false;
+            tetrisPlayButton.Click += tetrisPlayButton_Click;
+            // 
+            // tetrisBackButton
+            // 
+            tetrisBackButton.BackColor = Color.Transparent;
+            tetrisBackButton.BackgroundImage = (Image)resources.GetObject("tetrisBackButton.BackgroundImage");
+            tetrisBackButton.BackgroundImageLayout = ImageLayout.Stretch;
+            tetrisBackButton.Location = new Point(3, 3);
+            tetrisBackButton.Name = "tetrisBackButton";
+            tetrisBackButton.Size = new Size(123, 117);
+            tetrisBackButton.SizeMode = PictureBoxSizeMode.Zoom;
+            tetrisBackButton.TabIndex = 1;
+            tetrisBackButton.TabStop = false;
+            tetrisBackButton.Click += tetrisBackButton_Click;
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -368,6 +428,7 @@
             BackgroundImageLayout = ImageLayout.Stretch;
             ClientSize = new Size(875, 459);
             Controls.Add(HomePanel);
+            Controls.Add(TetrisPanel);
             Controls.Add(hillPanel);
             Controls.Add(memoryPanel);
             Controls.Add(flappyBirdPanel);
@@ -383,6 +444,7 @@
             ((System.ComponentModel.ISupportInitialize)pictureDino).EndInit();
             HomePanel.ResumeLayout(false);
             HomePanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureTetris).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureHill).EndInit();
             snakePanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)playButton).EndInit();
@@ -399,6 +461,9 @@
             hillPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)hillPlayButton).EndInit();
             ((System.ComponentModel.ISupportInitialize)hillBackButton).EndInit();
+            TetrisPanel.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)tetrisPlayButton).EndInit();
+            ((System.ComponentModel.ISupportInitialize)tetrisBackButton).EndInit();
             ResumeLayout(false);
         }
 
@@ -426,5 +491,9 @@
         private Panel hillPanel;
         private PictureBox hillPlayButton;
         private PictureBox hillBackButton;
+        private PictureBox pictureTetris;
+        private Panel TetrisPanel;
+        private PictureBox tetrisPlayButton;
+        private PictureBox tetrisBackButton;
     }
 }

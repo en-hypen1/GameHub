@@ -9,6 +9,7 @@
         private Rectangle pictureFlappyOriginalRect;
         private Rectangle pictureDinoOriginalRect;
         private Rectangle pictureHillOriginalRect;
+        private Rectangle pictureTetrisOriginalRect;
 
         public Main()
         {
@@ -35,6 +36,7 @@
             EnableDoubleBuffering(dinoPanel);
             EnableDoubleBuffering(flappyBirdPanel);
             EnableDoubleBuffering(hillPanel);
+            EnableDoubleBuffering(TetrisPanel);
             // ========== MENAXHIMI I PANELEVE ==========
             HideAllGamePanels();
             HomePanel.Visible = true;
@@ -54,6 +56,8 @@
             pictureFlappyOriginalRect = new Rectangle(pictureFlappy.Location, pictureFlappy.Size);
             pictureDinoOriginalRect = new Rectangle(pictureDino.Location, pictureDino.Size);
             pictureHillOriginalRect = new Rectangle(pictureHill.Location, pictureHill.Size);
+            pictureTetrisOriginalRect = new Rectangle(pictureTetris.Location, pictureTetris.Size);
+
 
             // Bëj resize fillestar
             PerformResize();
@@ -70,6 +74,7 @@
             ResizeControl(pictureFlappyOriginalRect, pictureFlappy);
             ResizeControl(pictureDinoOriginalRect, pictureDino);
             ResizeControl(pictureHillOriginalRect, pictureHill);
+            ResizeControl(pictureTetrisOriginalRect, pictureTetris);
 
             this.ResumeLayout();
             this.Refresh();
@@ -122,6 +127,7 @@
             if (dinoPanel != null) dinoPanel.Visible = false;
             if (flappyBirdPanel != null) flappyBirdPanel.Visible = false;
             if (hillPanel != null) hillPanel.Visible = false;
+            if (TetrisPanel != null) TetrisPanel.Visible = false;
             // if (hillClimbPanel != null) hillClimbPanel.Visible = false;
         }
         private void ShowGamePanel(Panel gamePanel)
@@ -143,6 +149,7 @@
             OptimizeImagesInContainer(dinoPanel);
             OptimizeImagesInContainer(flappyBirdPanel);
             OptimizeImagesInContainer(hillPanel);
+            OptimizeImagesInContainer(TetrisPanel);
             // OptimizeImagesInContainer(hillClimbPanel);
         }
 
@@ -197,7 +204,10 @@
         {
             ShowGamePanel(hillPanel);
         }
-
+        private void pictureTetris_Click(object sender, EventArgs e)
+        {
+            ShowGamePanel(TetrisPanel);
+        }
 
         // ========== BUTONAT PLAY ==========
         private void playButton_Click(object sender, EventArgs e)
@@ -234,6 +244,15 @@
             HillClimbRacing hill = new HillClimbRacing(this);
             hill.Show();
         }
+
+        private void tetrisPlayButton_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            TetrisGame tetrisGame = new TetrisGame(this);
+            tetrisGame.Show();
+        }
+
+
 
         // ========== BUTONAT BACK ==========
         private void backButton_Click(object sender, EventArgs e)
@@ -275,6 +294,14 @@
             this.Refresh();
         }
 
+      
 
+        private void tetrisBackButton_Click(object sender, EventArgs e)
+        {
+            HideAllGamePanels();
+            HomePanel.Visible = true;
+            HomePanel.BringToFront();
+            this.Refresh();
+        }
     }
 }
