@@ -10,7 +10,6 @@ namespace GameHub
         private System.Windows.Forms.Timer gameTimer;
         private Main mainForm;
 
-        // Variablat e lojës
         private float carX = 100;
         private float carY = 300;
         private float carRotation = 0;
@@ -26,50 +25,39 @@ namespace GameHub
         private bool hasWon = false;
         private string crashMessage = "";
 
-        // Karakteristikat e makinës
         private float gravity = 0.5f;
         private float groundHeight = 350;
         private float wheelRadius = 14;
         private float carWidth = 60;
         private float carHeight = 28;
 
-        // Kamera
         private float cameraX = 0;
-        private float worldWidth = 12000; // 3x më gjatë!
+        private float worldWidth = 12000;
+        private float finishX = 11500;
 
-        // Finish line
-        private float finishX = 11500; // afër fundit
-
-        // Terrain
         private PointF[] terrainPoints;
-        private int terrainPointCount = 220; // më shumë pika për botë më të madhe
+        private int terrainPointCount = 220;
 
-        // Coins dhe Fuel
         private PointF[] coinsList;
         private bool[] coinsCollected;
         private PointF[] fuelCans;
         private bool[] fuelCollected;
         private Random rand = new Random();
 
-        // Kontrolli
         private bool keyLeft = false;
         private bool keyRight = false;
 
-        // Animacioni
         private float wheelRotation = 0;
         private float headAngle = 0;
         private float neckOffset = 0;
 
-        // Efektet
         private float shakeAmount = 0;
         private bool onGround = true;
         private float timeSinceFlip = 0;
 
-        // Win animacion
         private float winTimer = 0;
         private float flagWave = 0;
 
-        // Font-et si fields
         private Font fontUI = new Font("Arial", 14, FontStyle.Bold);
         private Font fontFuel = new Font("Arial", 12, FontStyle.Bold);
         private Font fontSmall = new Font("Arial", 10);
@@ -85,11 +73,56 @@ namespace GameHub
             this.DoubleBuffered = true;
             this.KeyPreview = true;
 
+            if (main.WindowState == FormWindowState.Maximized)
+                this.WindowState = FormWindowState.Maximized;
+            else if (main.WindowState == FormWindowState.Minimized)
+                this.WindowState = FormWindowState.Minimized;
+            else
+                this.WindowState = FormWindowState.Normal;
+
             this.Size = new Size(1024, 600);
             this.BackColor = Color.LightSkyBlue;
             this.KeyDown += HillClimbRacing_KeyDown;
             this.KeyUp += HillClimbRacing_KeyUp;
             this.FormClosing += HillClimbRacing_FormClosing;
+
+            // Exit button
+            var exitButton = new Button
+            {
+                Text = "✕ EXIT",
+                Size = new Size(80, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(180, 60, 60),
+                ForeColor = Color.White,
+                Font = new Font("Arial", 9, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Location = new Point(8, 158),
+                TabStop = false,
+                UseVisualStyleBackColor = false
+            };
+            exitButton.FlatAppearance.BorderSize = 0;
+            exitButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 50, 50);
+            exitButton.Click += (s, e) => this.Close();
+
+            // Çdo tast që shtyp mbi buton → shko te forma
+            exitButton.KeyDown += (s, e) =>
+            {
+                HillClimbRacing_KeyDown(this, e);
+            };
+            exitButton.KeyUp += (s, e) =>
+            {
+                HillClimbRacing_KeyUp(this, e);
+            };
+            // Kur klikohet me maus → ktheje fokusin menjeherë te forma
+            exitButton.MouseClick += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                    this.Close();
+            };
+            exitButton.GotFocus += (s, e) => this.Focus();
+
+            this.Controls.Add(exitButton);
+            this.Shown += (s, e) => this.Focus();
 
             InitializeGame();
         }
@@ -114,7 +147,6 @@ namespace GameHub
                 float x = i * step;
                 float y = groundHeight;
 
-                // Terreni bëhet gradualisht më i vështirë
                 float difficulty = 1.0f + (i / (float)terrainPointCount) * 1.5f;
 
                 float h = (float)(Math.Sin(i * 0.08) * 45 * difficulty);
@@ -122,14 +154,12 @@ namespace GameHub
                 h += (float)(Math.Cos(i * 0.15) * 15);
                 h += rand.Next(-10, 10);
 
-                // Zona speciale të terrenit - të shpërndara gjatë gjithë botës
                 int zone = i % 55;
-                if (zone > 5 && zone < 15) h -= 80 * difficulty;  // kodër lart
-                else if (zone > 20 && zone < 32) h += 70 * difficulty;  // luginë
-                else if (zone > 38 && zone < 46) h -= 60 * difficulty;  // kodër
-                else if (zone > 48 && zone < 53) h += 50 * difficulty;  // fund
+                if (zone > 5 && zone < 15) h -= 80 * difficulty;
+                else if (zone > 20 && zone < 32) h += 70 * difficulty;
+                else if (zone > 38 && zone < 46) h -= 60 * difficulty;
+                else if (zone > 48 && zone < 53) h += 50 * difficulty;
 
-                // Zona e finishit - bëje të rrafshët
                 if (i > terrainPointCount - 15)
                     y = groundHeight + rand.Next(-5, 5);
                 else
@@ -142,7 +172,6 @@ namespace GameHub
 
         private void GenerateCollectibles()
         {
-            // Shumë më shumë coins dhe fuel për botë 3x më të madhe
             int coinCount = 120;
             coinsList = new PointF[coinCount];
             coinsCollected = new bool[coinCount];
@@ -203,7 +232,6 @@ namespace GameHub
                 return;
             }
 
-            // ── FIZIKA ───────────────────────────────────────────
             carVelocityY += gravity;
             carY += carVelocityY;
 
@@ -238,11 +266,9 @@ namespace GameHub
             carX += carSpeed;
             carX = Math.Max(30, Math.Min(worldWidth - 70, carX));
 
-            // Kamera
             cameraX = carX - this.Width / 2f;
             cameraX = Math.Max(0, Math.Min(worldWidth - this.Width, cameraX));
 
-            // Toka
             float carCenterX = carX + carWidth / 2;
             float terrainH = GetTerrainHeight(carCenterX);
             float terrainAngle = GetTerrainAngle(carCenterX);
@@ -291,16 +317,14 @@ namespace GameHub
                 score -= 500;
             }
 
-            // CHECK FINISH LINE
             if (carX + carWidth / 2 >= finishX && !hasCrashed)
             {
                 hasWon = true;
                 score += 5000;
                 winTimer = 0;
-                gameTimer.Interval = 50; // ngadalëso tickun për animacion
+                gameTimer.Interval = 50;
             }
 
-            // Coins
             for (int i = 0; i < coinsList.Length; i++)
             {
                 if (!coinsCollected[i] &&
@@ -313,7 +337,6 @@ namespace GameHub
                 }
             }
 
-            // Fuel cans
             for (int i = 0; i < fuelCans.Length; i++)
             {
                 if (!fuelCollected[i] &&
@@ -361,7 +384,6 @@ namespace GameHub
             this.Invalidate();
         }
 
-        // ── VIZATIMI ─────────────────────────────────────────────
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -370,7 +392,6 @@ namespace GameHub
             float shakeX = shakeAmount > 0 ? rand.Next(-(int)shakeAmount, (int)shakeAmount) : 0;
             float shakeY = shakeAmount > 0 ? rand.Next(-(int)shakeAmount / 2, (int)shakeAmount / 2) : 0;
 
-            // SKY - gradient bëhet më i errët me distancën
             float skyProgress = Math.Min(1f, cameraX / (worldWidth - this.Width));
             Color skyTop = InterpolateColor(
                 Color.FromArgb(135, 206, 235),
@@ -381,21 +402,17 @@ namespace GameHub
                 skyTop, Color.FromArgb(25, 25, 112), 90f))
                 g.FillRectangle(sky, 0, 0, this.Width, this.Height);
 
-            // Dielli lëviz pak me kamerën (parallax)
             float sunX = this.Width - 150 - cameraX * 0.02f;
             g.FillEllipse(Brushes.Yellow, sunX, 40, 80, 80);
 
-            // Retë me parallax
             DrawCloud(g, 150 + cameraX * 0.1f % this.Width, 70, 90, 50);
             DrawCloud(g, 420 + cameraX * 0.08f % this.Width, 100, 70, 40);
             DrawCloud(g, 720 + cameraX * 0.12f % this.Width, 55, 85, 48);
             DrawCloud(g, 950 + cameraX * 0.09f % this.Width, 85, 75, 42);
 
-            // Apliko kamerën + shake
             var saved = g.Save();
             g.TranslateTransform(-cameraX + shakeX, shakeY);
 
-            // TERRAIN
             if (terrainPoints != null && terrainPoints.Length > 1)
             {
                 using (var path = new GraphicsPath())
@@ -414,27 +431,21 @@ namespace GameHub
                 }
             }
 
-            // FINISH LINE
             DrawFinishLine(g);
 
-            // COINS
             for (int i = 0; i < coinsList.Length; i++)
                 if (!coinsCollected[i])
                     DrawCoin(g, coinsList[i].X, coinsList[i].Y);
 
-            // FUEL CANS
             for (int i = 0; i < fuelCans.Length; i++)
                 if (!fuelCollected[i])
                     DrawFuelCan(g, fuelCans[i].X, fuelCans[i].Y);
 
-            // PROGRESS MARKER - trekëndësh mbi makinë
             float prog = Math.Min(1f, (carX / finishX));
             DrawProgressMarker(g, prog);
 
-            // MAKINA
             DrawCar(g, carX, carY, carRotation, wheelRotation, headAngle, neckOffset, hasCrashed);
 
-            // EXHAUST
             if (keyRight && carSpeed > 2 && fuel > 0 && !hasCrashed)
             {
                 int sz = rand.Next(5, 13);
@@ -444,10 +455,7 @@ namespace GameHub
 
             g.Restore(saved);
 
-            // PROGRESS BAR - lart qendër
             DrawProgressBar(g);
-
-            // UI
             DrawUI(g);
         }
 
@@ -455,13 +463,11 @@ namespace GameHub
         {
             float fh = GetTerrainHeight(finishX);
 
-            // Shtylla e flamurit
             float poleX = finishX + 5;
             float poleY = fh - 120;
             using (var pole = new Pen(Color.White, 4))
                 g.DrawLine(pole, poleX, poleY, poleX, fh);
 
-            // Flamuri me animacion vale
             PointF[] flag = new PointF[]
             {
                 new PointF(poleX,      poleY),
@@ -469,11 +475,9 @@ namespace GameHub
                 new PointF(poleX + 30, poleY + 30 + flagWave),
                 new PointF(poleX,      poleY + 20),
             };
-            // Karocat e flamurit (checkered)
             using (var flagBrush = new SolidBrush(Color.Black))
                 g.FillPolygon(flagBrush, flag);
 
-            // Karocat e bardha
             for (int row = 0; row < 2; row++)
                 for (int col = 0; col < 2; col++)
                     if ((row + col) % 2 == 0)
@@ -489,7 +493,6 @@ namespace GameHub
                         g.FillPolygon(Brushes.White, cell);
                     }
 
-            // Vija e finishit (checkered pattern)
             int stripeW = 20;
             int stripeH = 10;
             for (int i = 0; i < 8; i++)
@@ -509,11 +512,9 @@ namespace GameHub
                 }
             }
 
-            // Tekst "FINISH"
             using (var finFont = new Font("Arial", 14, FontStyle.Bold))
             {
                 SizeF fs = g.MeasureString("FINISH", finFont);
-                // Shadow
                 g.DrawString("FINISH", finFont, Brushes.Black,
                     finishX - fs.Width / 2 + 2, fh - 145);
                 g.DrawString("FINISH", finFont, Brushes.Yellow,
@@ -523,18 +524,14 @@ namespace GameHub
 
         private void DrawProgressMarker(Graphics g, float progress)
         {
-            // Trekëndësh i vogël mbi makinë - tregon pozicionin
             float mx = carX + carWidth / 2;
             float my = carY - 20;
-            using (var pen = new Pen(Color.Yellow, 2))
-            {
-                PointF[] arrow = {
-                    new PointF(mx,      my),
-                    new PointF(mx - 6,  my - 12),
-                    new PointF(mx + 6,  my - 12),
-                };
-                g.FillPolygon(Brushes.Yellow, arrow);
-            }
+            PointF[] arrow = {
+                new PointF(mx,     my),
+                new PointF(mx - 6, my - 12),
+                new PointF(mx + 6, my - 12),
+            };
+            g.FillPolygon(Brushes.Yellow, arrow);
         }
 
         private void DrawProgressBar(Graphics g)
@@ -547,11 +544,9 @@ namespace GameHub
             float prog = Math.Min(1f, carX / finishX);
             int fill = (int)(barW * prog);
 
-            // Background
             using (var bg = new SolidBrush(Color.FromArgb(160, 0, 0, 0)))
                 g.FillRectangle(bg, barX, barY, barW, barH);
 
-            // Fill - jeshile → portokalli → kuqe
             Color c;
             if (prog < 0.5f)
                 c = Color.FromArgb(50, (int)(255 * prog * 2), 50);
@@ -564,15 +559,12 @@ namespace GameHub
 
             g.DrawRectangle(Pens.White, barX, barY, barW, barH);
 
-            // Flamuri i finishit
             using (var ff = new Font("Arial", 9))
                 g.DrawString("🏁", ff, Brushes.White, barX + barW + 3, barY - 2);
 
-            // Makina e vogël mbi bar
             using (var ff = new Font("Arial", 9))
                 g.DrawString("🚗", ff, Brushes.White, barX + fill - 10, barY - 14);
 
-            // Distanca / total
             using (var ff = new Font("Arial", 9, FontStyle.Bold))
             {
                 string txt = $"{(int)(prog * 100)}%";
@@ -582,7 +574,6 @@ namespace GameHub
             }
         }
 
-        // ── MAKINA ───────────────────────────────────────────────
         private void DrawCar(Graphics g, float x, float y, float rotation,
                              float wheelRot, float headAng, float neck, bool crashed)
         {
@@ -596,14 +587,12 @@ namespace GameHub
             float bx = -carWidth / 2;
             float by = -carHeight / 2;
 
-            // Trupi
             using (var carBrush = new LinearGradientBrush(
                 new RectangleF(bx, by, carWidth, carHeight),
                 Color.FromArgb(220, 20, 60), Color.FromArgb(139, 0, 0), 45f))
                 g.FillRectangle(carBrush, bx, by, carWidth, carHeight);
             g.DrawRectangle(new Pen(Color.DarkRed, 2), bx, by, carWidth, carHeight);
 
-            // Kabina
             float cabX = bx + 10;
             float cabW = carWidth - 20;
             float cabH = 16;
@@ -613,17 +602,14 @@ namespace GameHub
                 g.FillRectangle(cabBrush, cabX, by - cabH, cabW, cabH);
             g.DrawRectangle(new Pen(Color.DarkRed, 1), cabX, by - cabH, cabW, cabH);
 
-            // Dritaret
             g.FillRectangle(new SolidBrush(Color.FromArgb(180, 173, 216, 230)),
                 cabX + 3, by - cabH + 3, (cabW / 2) - 5, cabH - 6);
             g.FillRectangle(new SolidBrush(Color.FromArgb(180, 173, 216, 230)),
                 cabX + cabW / 2 + 2, by - cabH + 3, (cabW / 2) - 5, cabH - 6);
 
-            // Rrotat
             DrawWheelLocal(g, -carWidth / 2 + 12, carHeight / 2, wheelRot);
             DrawWheelLocal(g, carWidth / 2 - 12, carHeight / 2, wheelRot);
 
-            // Personazhi
             float px = -carWidth / 2 + 12;
             float py = -carHeight / 2 - 20;
 
@@ -704,7 +690,6 @@ namespace GameHub
 
         private void DrawCloud(Graphics g, float x, float y, float w, float h)
         {
-            // Mbaj retë brenda ekranit
             x = x % (this.Width + 200) - 100;
             using (var b = new SolidBrush(Color.FromArgb(210, 255, 255, 255)))
             {
@@ -724,7 +709,6 @@ namespace GameHub
 
         private void DrawUI(Graphics g)
         {
-            // Panel i majtë
             using (var dark = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
             {
                 g.FillRectangle(dark, 0, 0, 290, 155);
@@ -740,7 +724,6 @@ namespace GameHub
                 fuel > 40 ? Brushes.LimeGreen : fuel > 20 ? Brushes.Orange : Brushes.OrangeRed,
                 15, 128);
 
-            // Fuel bar
             g.DrawString("FUEL", fontFuel, Brushes.White, this.Width - 200, 12);
             g.FillRectangle(Brushes.DimGray, this.Width - 200, 38, 170, 22);
             int fw = (int)(170 * fuel / 100);
@@ -750,11 +733,9 @@ namespace GameHub
             g.DrawRectangle(Pens.White, this.Width - 200, 38, 170, 22);
             g.DrawString($"{fuel:F0}%", fontFuel, Brushes.White, this.Width - 112, 40);
 
-            // Kontrollet
             g.DrawString("← →  Drive   ↑  Jump   R  Restart   P  Pause",
                 fontSmall, Brushes.LightGray, 12, this.Height - 28);
 
-            // PAUSED
             if (isPaused)
             {
                 using (var bg = new SolidBrush(Color.FromArgb(160, 0, 0, 0)))
@@ -767,7 +748,6 @@ namespace GameHub
                     (this.Width - ps2.Width) / 2, this.Height / 2 + 20);
             }
 
-            // CRASH
             if (hasCrashed && !isGameOver)
             {
                 SizeF ts = g.MeasureString(crashMessage, fontCrash);
@@ -779,7 +759,6 @@ namespace GameHub
                     (this.Width - ts.Width) / 2, this.Height / 2 - 40);
             }
 
-            // GAME OVER
             if (isGameOver)
             {
                 using (var bg = new SolidBrush(Color.FromArgb(210, 0, 0, 0)))
@@ -805,7 +784,6 @@ namespace GameHub
                     (this.Width - rs.Width) / 2, this.Height / 2 + 55);
             }
 
-            // YOU WIN!
             if (hasWon)
             {
                 using (var bg = new SolidBrush(Color.FromArgb(210, 0, 60, 0)))
@@ -815,7 +793,6 @@ namespace GameHub
 
                 string win = "🏆 YOU WIN! 🏆";
                 SizeF ws = g.MeasureString(win, fontWin);
-                // Shadow
                 g.DrawString(win, fontWin, Brushes.Black,
                     (this.Width - ws.Width) / 2 + 2, this.Height / 2 - 115);
                 g.DrawString(win, fontWin, Brushes.Gold,
@@ -866,6 +843,45 @@ namespace GameHub
                 case Keys.Right: keyRight = false; break;
                 case Keys.Left: keyLeft = false; break;
             }
+        }
+
+        // Override ProcessCmdKey — kjo kap TË GJITHA tastet para çdo kontrolli
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.Right:
+                    keyRight = true;
+                    return true;
+                case Keys.Left:
+                    keyLeft = true;
+                    return true;
+                case Keys.Up:
+                    if (onGround && !hasCrashed && fuel > 0)
+                    {
+                        carVelocityY = -10;
+                        fuel -= 1.5f;
+                    }
+                    return true;
+                case Keys.R:
+                    RestartGame();
+                    return true;
+                case Keys.P:
+                    isPaused = !isPaused;
+                    this.Invalidate();
+                    return true;
+                case Keys.Space:
+                    return true; // blloko Space që të mos aktivizojë butonin
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        protected override bool ProcessDialogKey(Keys keyData)
+        {
+            // Blloko Enter dhe Space që të mos shkojnë te butoni
+            if (keyData == Keys.Space || keyData == Keys.Enter)
+                return true;
+            return base.ProcessDialogKey(keyData);
         }
 
         private void RestartGame()
