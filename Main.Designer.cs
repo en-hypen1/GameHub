@@ -87,7 +87,7 @@
             pictureSnake.BackColor = Color.Transparent;
             pictureSnake.BackgroundImage = (Image)resources.GetObject("pictureSnake.BackgroundImage");
             pictureSnake.BackgroundImageLayout = ImageLayout.Stretch;
-            pictureSnake.Location = new Point(115, 89);
+            pictureSnake.Location = new Point(149, 85);
             pictureSnake.Name = "pictureSnake";
             pictureSnake.Size = new Size(156, 187);
             pictureSnake.TabIndex = 0;
@@ -99,7 +99,7 @@
             pictureFlappy.BackColor = Color.Transparent;
             pictureFlappy.BackgroundImage = (Image)resources.GetObject("pictureFlappy.BackgroundImage");
             pictureFlappy.BackgroundImageLayout = ImageLayout.Stretch;
-            pictureFlappy.Location = new Point(291, 89);
+            pictureFlappy.Location = new Point(353, 85);
             pictureFlappy.Name = "pictureFlappy";
             pictureFlappy.Size = new Size(156, 187);
             pictureFlappy.TabIndex = 1;
@@ -111,7 +111,7 @@
             pictureMemory.BackColor = Color.Transparent;
             pictureMemory.BackgroundImage = (Image)resources.GetObject("pictureMemory.BackgroundImage");
             pictureMemory.BackgroundImageLayout = ImageLayout.Stretch;
-            pictureMemory.Location = new Point(453, 89);
+            pictureMemory.Location = new Point(563, 85);
             pictureMemory.Name = "pictureMemory";
             pictureMemory.Size = new Size(156, 187);
             pictureMemory.TabIndex = 2;
@@ -123,7 +123,7 @@
             pictureDino.BackColor = Color.Transparent;
             pictureDino.BackgroundImage = (Image)resources.GetObject("pictureDino.BackgroundImage");
             pictureDino.BackgroundImageLayout = ImageLayout.Stretch;
-            pictureDino.Location = new Point(627, 89);
+            pictureDino.Location = new Point(563, 260);
             pictureDino.Name = "pictureDino";
             pictureDino.Size = new Size(156, 187);
             pictureDino.TabIndex = 3;
@@ -153,7 +153,7 @@
             pictureTetris.BackColor = Color.Transparent;
             pictureTetris.BackgroundImage = (Image)resources.GetObject("pictureTetris.BackgroundImage");
             pictureTetris.BackgroundImageLayout = ImageLayout.Stretch;
-            pictureTetris.Location = new Point(291, 269);
+            pictureTetris.Location = new Point(353, 260);
             pictureTetris.Name = "pictureTetris";
             pictureTetris.Size = new Size(156, 187);
             pictureTetris.TabIndex = 6;
@@ -165,7 +165,7 @@
             pictureHill.BackColor = Color.Transparent;
             pictureHill.BackgroundImage = (Image)resources.GetObject("pictureHill.BackgroundImage");
             pictureHill.BackgroundImageLayout = ImageLayout.Stretch;
-            pictureHill.Location = new Point(115, 269);
+            pictureHill.Location = new Point(149, 260);
             pictureHill.Name = "pictureHill";
             pictureHill.Size = new Size(156, 187);
             pictureHill.TabIndex = 5;
@@ -179,7 +179,7 @@
             label1.BackColor = Color.Transparent;
             label1.Font = new Font("Broadway", 34F, FontStyle.Regular, GraphicsUnit.Point, 0);
             label1.ForeColor = SystemColors.ButtonFace;
-            label1.Location = new Point(303, 18);
+            label1.Location = new Point(302, 30);
             label1.Name = "label1";
             label1.Size = new Size(283, 52);
             label1.TabIndex = 4;
