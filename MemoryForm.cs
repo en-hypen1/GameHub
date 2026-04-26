@@ -15,13 +15,22 @@ namespace GameHub
         Random rand = new Random();
         System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
         System.Windows.Forms.Timer gameTimer = new System.Windows.Forms.Timer();
+        System.Windows.Forms.Timer starTimer = new System.Windows.Forms.Timer(); // YJET
         private Form _parentForm;
         bool isGameActive = false;
         Form mainFormReference;
         bool isFormLoaded = false;
-        bool isProcessingClick = false; // FIX: bllokon klikimin e tretë
+        bool isProcessingClick = false;
 
         List<Button> cardButtons = new List<Button>();
+
+        // YJET - strukturë për çdo yll
+        struct Star
+        {
+            public float X, Y, Size, Opacity, Speed;
+        }
+        List<Star> stars = new List<Star>();
+        Panel starPanel; // paneli i yjeve, nën kartat
 
         List<Image> images = new List<Image>()
         {
@@ -56,10 +65,9 @@ namespace GameHub
             InitializeComponent();
             _parentForm = parent;
             mainFormReference = parent;
-            this.BackColor = Color.FromArgb(20, 20, 60);
+            this.BackColor = Color.FromArgb(10, 10, 40);
             this.ClientSize = new Size(600, 600);
 
-            // Match parent window state
             if (parent != null)
             {
                 if (parent.WindowState == FormWindowState.Maximized)
@@ -69,6 +77,15 @@ namespace GameHub
                 else
                     this.WindowState = FormWindowState.Normal;
             }
+
+            // ===== KRIJONI YJET =====
+            CreateStarPanel();
+            GenerateStars();
+
+            starTimer.Interval = 50; // 20 FPS për animacion yje
+            starTimer.Tick += StarTimer_Tick;
+            starTimer.Start();
+            // ========================
 
             timer.Interval = 750;
             timer.Tick += Timer_Tick;
@@ -82,8 +99,10 @@ namespace GameHub
             timeLabel.Size = new Size(200, 30);
             timeLabel.Font = new Font("Arial", 14, FontStyle.Bold);
             timeLabel.ForeColor = Color.White;
+            timeLabel.BackColor = Color.Transparent;
             timeLabel.Text = "Time: 60";
             this.Controls.Add(timeLabel);
+            timeLabel.BringToFront();
 
             // Restart button
             Button restartBtn = CreateStyledButton("🔄 Restart", new Size(120, 40));
@@ -91,6 +110,7 @@ namespace GameHub
             restartBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             restartBtn.Click += (s, e) => ResetGame();
             this.Controls.Add(restartBtn);
+            restartBtn.BringToFront();
 
             // Exit button
             Button exitBtn = CreateStyledButton("Exit", new Size(80, 40));
@@ -102,6 +122,7 @@ namespace GameHub
                 this.Close();
             };
             this.Controls.Add(exitBtn);
+            exitBtn.BringToFront();
 
             // Start button
             Button startBtn = CreateStyledButton("▶ Start Game", new Size(120, 40));
@@ -125,13 +146,94 @@ namespace GameHub
             CreateButtons();
             EnableAllCards(false);
 
-            // Shto panelin e info në të djathtë
-           // AddInfoPanel();
-
             isFormLoaded = true;
         }
 
-       
+        // ===== YJET - Krijon panelin e background =====
+        void CreateStarPanel()
+        {
+            starPanel = new Panel();
+            starPanel.Dock = DockStyle.Fill;
+            starPanel.BackColor = Color.Transparent;
+            starPanel.Paint += StarPanel_Paint;
+            this.Controls.Add(starPanel);
+            starPanel.SendToBack();
+        }
+
+        void GenerateStars()
+        {
+            stars.Clear();
+            int count = 120;
+            for (int i = 0; i < count; i++)
+            {
+                stars.Add(new Star
+                {
+                    X = (float)(rand.NextDouble() * this.ClientSize.Width),
+                    Y = (float)(rand.NextDouble() * this.ClientSize.Height),
+                    Size = (float)(rand.NextDouble() * 2.5 + 0.5),
+                    Opacity = (float)(rand.NextDouble() * 0.8 + 0.2),
+                    Speed = (float)(rand.NextDouble() * 0.3 + 0.05)
+                });
+            }
+        }
+
+        void StarTimer_Tick(object sender, EventArgs e)
+        {
+            // Yjet pulojnë - ndryshojnë opacity ngadalë
+            for (int i = 0; i < stars.Count; i++)
+            {
+                Star s = stars[i];
+                s.Opacity += s.Speed * (rand.Next(2) == 0 ? 1 : -1) * 0.05f;
+                if (s.Opacity > 1.0f) s.Opacity = 1.0f;
+                if (s.Opacity < 0.1f) s.Opacity = 0.1f;
+                stars[i] = s;
+            }
+            starPanel?.Invalidate();
+        }
+
+        void StarPanel_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.Clear(Color.FromArgb(10, 10, 40));
+
+            foreach (Star s in stars)
+            {
+                int alpha = (int)(s.Opacity * 255);
+                if (alpha < 10) continue;
+                Color starColor = Color.FromArgb(alpha, 200, 220, 255);
+                using (SolidBrush brush = new SolidBrush(starColor))
+                {
+                    float half = s.Size / 2f;
+                    g.FillEllipse(brush, s.X - half, s.Y - half, s.Size, s.Size);
+                }
+                // Yllë të mëdha marrin një kryq të vogël shkëlqyes
+                if (s.Size > 2.0f)
+                {
+                    int gAlpha = (int)(s.Opacity * 120);
+                    using (Pen pen = new Pen(Color.FromArgb(gAlpha, 180, 210, 255), 0.5f))
+                    {
+                        g.DrawLine(pen, s.X - s.Size, s.Y, s.X + s.Size, s.Y);
+                        g.DrawLine(pen, s.X, s.Y - s.Size, s.X, s.Y + s.Size);
+                    }
+                }
+            }
+        }
+        // ===============================================
+
+        private Button CreateStyledButton(string text, Size size)
+        {
+            Button btn = new Button();
+            btn.Text = text;
+            btn.Size = size;
+            btn.BackColor = Color.FromArgb(30, 30, 80);
+            btn.ForeColor = Color.White;
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 1;
+            btn.FlatAppearance.BorderColor = Color.FromArgb(80, 100, 180);
+            btn.Font = new Font("Arial", 10, FontStyle.Bold);
+            return btn;
+        }
+
         private void AddSeparator(Panel parent, int x, int y, int w)
         {
             Panel sep = new Panel();
@@ -141,24 +243,12 @@ namespace GameHub
             sep.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             parent.Controls.Add(sep);
         }
-        private Button CreateStyledButton(string text, Size size)
-        {
-            Button btn = new Button();
-            btn.Text = text;
-            btn.Size = size;
-            btn.BackColor = Color.FromArgb(30, 30, 30);
-            btn.ForeColor = Color.White;
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-            btn.Font = new Font("Arial", 10, FontStyle.Bold);
-            return btn;
-        }
 
         void ResetGame()
         {
             StopAllTimers();
             isGameActive = false;
-            isProcessingClick = false; // reset edhe këtë
+            isProcessingClick = false;
 
             var toRemove = new List<Control>();
             foreach (Control ctrl in this.Controls)
@@ -166,11 +256,9 @@ namespace GameHub
                 if (ctrl is Button btn &&
                     (btn.Text == "🔄 Restart" || btn.Text == "Exit" || btn.Text == "▶ Start Game"))
                     continue;
-                if (ctrl == timeLabel)
-                    continue;
-                // Mos fshi info label-in
-                if (ctrl is Label lbl && lbl != timeLabel)
-                    continue;
+                if (ctrl == timeLabel) continue;
+                if (ctrl == starPanel) continue;
+                if (ctrl is Label lbl && lbl != timeLabel) continue;
                 toRemove.Add(ctrl);
             }
             foreach (var ctrl in toRemove)
@@ -179,7 +267,10 @@ namespace GameHub
             cardButtons.Clear();
 
             if (!this.Controls.Contains(timeLabel))
+            {
                 this.Controls.Add(timeLabel);
+                timeLabel.BringToFront();
+            }
 
             Button startBtn = null;
             foreach (Control ctrl in this.Controls)
@@ -214,6 +305,9 @@ namespace GameHub
             timeLeft = 60;
             timeLabel.Text = "Time: 60";
 
+            // Restart star timer nëse ishte ndalur
+            if (!starTimer.Enabled) starTimer.Start();
+
             ShuffleIndices();
             CreateButtons();
             EnableAllCards(false);
@@ -229,6 +323,7 @@ namespace GameHub
         {
             gameTimer.Stop();
             timer.Stop();
+            // NUK ndalojmë starTimer - yjet vazhdojnë gjithmonë
         }
 
         void ShuffleIndices()
@@ -278,15 +373,19 @@ namespace GameHub
             int rows = 4;
             int cols = 4;
             int topOffset = 80;
-            int sidePadding = 40;
             int spacing = 10;
 
-            int availableWidth = this.ClientSize.Width - (sidePadding * 2);
+            int availableWidth = this.ClientSize.Width;
             int availableHeight = this.ClientSize.Height - topOffset - 20;
             int btnSize = Math.Min(
-                (availableWidth - (cols - 1) * spacing) / cols,
+                (availableWidth - (cols - 1) * spacing) / (cols + 2),
                 (availableHeight - (rows - 1) * spacing) / rows
             );
+
+            int totalGridWidth = cols * btnSize + (cols - 1) * spacing;
+            int totalGridHeight = rows * btnSize + (rows - 1) * spacing;
+            int startX = (this.ClientSize.Width - totalGridWidth) / 2;
+            int startY = topOffset + (availableHeight - totalGridHeight) / 2;
 
             for (int i = 0; i < rows; i++)
             {
@@ -298,24 +397,35 @@ namespace GameHub
                     Button btn = new Button();
                     btn.Size = new Size(btnSize, btnSize);
                     btn.Location = new Point(
-                        sidePadding + j * (btnSize + spacing),
-                        topOffset + i * (btnSize + spacing)
+                        startX + j * (btnSize + spacing),
+                        startY + i * (btnSize + spacing)
                     );
                     btn.Tag = imageNames[originalIndex];
                     btn.AccessibleDescription = originalIndex.ToString();
                     btn.BackgroundImageLayout = ImageLayout.Stretch;
                     btn.FlatStyle = FlatStyle.Flat;
-                    btn.FlatAppearance.BorderSize = 0;
-                    btn.FlatAppearance.MouseDownBackColor = Color.Transparent;
-                    btn.BackColor = Color.FromArgb(40, 40, 40);
+                    btn.FlatAppearance.BorderSize = 2;
+                    btn.FlatAppearance.BorderColor = Color.FromArgb(80, 120, 220);
+                    btn.FlatAppearance.MouseDownBackColor = Color.FromArgb(50, 80, 200);
+                    btn.BackColor = Color.FromArgb(30, 60, 160);
+                    // ===== PIKËPYETJA =====
+                    btn.Text = "?";
+                    btn.Font = new Font("Arial", 28, FontStyle.Bold);
+                    btn.ForeColor = Color.FromArgb(100, 149, 237);
+                    // ======================
                     btn.Click += Button_Click;
-                    btn.MouseEnter += (s, e) => btn.BackColor = Color.DarkSlateBlue;
+                    btn.MouseEnter += (s, e) =>
+                    {
+                        if (!matchedButtons.Contains(btn))
+                            btn.BackColor = Color.FromArgb(60, 100, 220);
+                    };
                     btn.MouseLeave += (s, e) =>
                     {
                         if (!matchedButtons.Contains(btn))
-                            btn.BackColor = Color.FromArgb(40, 40, 40);
+                            btn.BackColor = Color.FromArgb(30, 60, 160);
                     };
                     this.Controls.Add(btn);
+                    btn.BringToFront();
                     cardButtons.Add(btn);
                 }
             }
@@ -327,16 +437,20 @@ namespace GameHub
 
             int rows = 4, cols = 4;
             int topOffset = 80;
-            int sidePadding = 40;
             int spacing = 10;
 
-            int availableWidth = this.ClientSize.Width - (sidePadding * 2);
+            int availableWidth = this.ClientSize.Width;
             int availableHeight = this.ClientSize.Height - topOffset - 20;
             int btnSize = Math.Min(
-                (availableWidth - (cols - 1) * spacing) / cols,
+                (availableWidth - (cols - 1) * spacing) / (cols + 2),
                 (availableHeight - (rows - 1) * spacing) / rows
             );
             if (btnSize < 40) btnSize = 40;
+
+            int totalGridWidth = cols * btnSize + (cols - 1) * spacing;
+            int totalGridHeight = rows * btnSize + (rows - 1) * spacing;
+            int startX = (this.ClientSize.Width - totalGridWidth) / 2;
+            int startY = topOffset + (availableHeight - totalGridHeight) / 2;
 
             for (int i = 0; i < rows; i++)
             {
@@ -346,11 +460,14 @@ namespace GameHub
                     if (idx >= cardButtons.Count) continue;
                     cardButtons[idx].Size = new Size(btnSize, btnSize);
                     cardButtons[idx].Location = new Point(
-                        sidePadding + j * (btnSize + spacing),
-                        topOffset + i * (btnSize + spacing)
+                        startX + j * (btnSize + spacing),
+                        startY + i * (btnSize + spacing)
                     );
                 }
             }
+
+            // Rigjeneroj yjet sipas madhësisë së re
+            GenerateStars();
 
             foreach (Control ctrl in this.Controls)
                 if (ctrl is Button btn && btn.Text == "▶ Start Game")
@@ -368,13 +485,13 @@ namespace GameHub
 
             Button clicked = sender as Button;
 
-            // FIX: bllokon klikimin e tretë
             if (isProcessingClick) return;
             if (matchedButtons.Contains(clicked)) return;
-            if (clicked == firstClicked) return; // mos lejo klikimin e së njëjtës kartë dy herë
+            if (clicked == firstClicked) return;
 
             int imgIndex = int.Parse(clicked.AccessibleDescription);
             clicked.BackgroundImage = images[imgIndex];
+            clicked.Text = ""; // FIX: fshij pikëpyetjen kur hapet karta
 
             if (firstClicked == null)
             {
@@ -383,26 +500,29 @@ namespace GameHub
             }
 
             secondClicked = clicked;
-
-            // Bllokon çdo klikim tjetër derisa të përpunohet çifti
             isProcessingClick = true;
             EnableAllCards(false);
 
             if ((string)firstClicked.Tag == (string)secondClicked.Tag)
             {
+                // MATCH - FIX: pikëpyetja NUK kthehet, imazhi mbetet, vetëm ngjyra ndryshon
                 System.Media.SystemSounds.Asterisk.Play();
                 matchedButtons.Add(firstClicked);
                 matchedButtons.Add(secondClicked);
-                firstClicked.BackColor = Color.LightGreen;
-                secondClicked.BackColor = Color.LightGreen;
+
+                firstClicked.BackColor = Color.FromArgb(50, 180, 80);   // gjelbër i bukur
+                firstClicked.FlatAppearance.BorderColor = Color.FromArgb(80, 220, 100);
+                // NUK i kthejmë Text = "?" - karta mbetet hapur me imazh!
+
+                secondClicked.BackColor = Color.FromArgb(50, 180, 80);
+                secondClicked.FlatAppearance.BorderColor = Color.FromArgb(80, 220, 100);
+                // NUK i kthejmë Text = "?" - karta mbetet hapur me imazh!
 
                 firstClicked = null;
                 secondClicked = null;
                 isProcessingClick = false;
 
-                // Rienable kartat e papërzgjedhura
                 EnableAllCards(true);
-                // Mos rienable kartat e matched
                 foreach (Button mb in matchedButtons)
                     mb.Enabled = false;
 
@@ -419,7 +539,7 @@ namespace GameHub
             }
             else
             {
-                // Trego kartat për 750ms pastaj mbuloji
+                // JO MATCH - trego 750ms pastaj mbuloji me pikëpyetje
                 timer.Start();
             }
         }
@@ -428,22 +548,30 @@ namespace GameHub
         {
             timer.Stop();
 
+            // FIX: kthej pikëpyetjen dhe ngjyrën blu - jo gri!
             if (firstClicked != null && !matchedButtons.Contains(firstClicked))
             {
                 firstClicked.BackgroundImage = null;
-                firstClicked.BackColor = Color.FromArgb(40, 40, 40);
+                firstClicked.BackColor = Color.FromArgb(30, 60, 160);       // BLU jo gri
+                firstClicked.FlatAppearance.BorderColor = Color.FromArgb(80, 120, 220);
+                firstClicked.Text = "?";                                      // kthe pikëpyetjen
+                firstClicked.Font = new Font("Arial", 28, FontStyle.Bold);
+                firstClicked.ForeColor = Color.FromArgb(100, 149, 237);
             }
             if (secondClicked != null && !matchedButtons.Contains(secondClicked))
             {
                 secondClicked.BackgroundImage = null;
-                secondClicked.BackColor = Color.FromArgb(40, 40, 40);
+                secondClicked.BackColor = Color.FromArgb(30, 60, 160);      // BLU jo gri
+                secondClicked.FlatAppearance.BorderColor = Color.FromArgb(80, 120, 220);
+                secondClicked.Text = "?";                                     // kthe pikëpyetjen
+                secondClicked.Font = new Font("Arial", 28, FontStyle.Bold);
+                secondClicked.ForeColor = Color.FromArgb(100, 149, 237);
             }
 
             firstClicked = null;
             secondClicked = null;
             isProcessingClick = false;
 
-            // Rienable të gjitha kartat pas mbulimit
             EnableAllCards(true);
             foreach (Button mb in matchedButtons)
                 mb.Enabled = false;
@@ -458,8 +586,8 @@ namespace GameHub
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            starTimer.Stop();
             StopAllTimers();
-            // FIX: shfaq gjithmonë formën prind kur mbyllet kjo formë
             if (mainFormReference != null && !mainFormReference.IsDisposed)
                 mainFormReference.Show();
             base.OnFormClosing(e);
