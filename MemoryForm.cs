@@ -23,6 +23,7 @@ namespace GameHub
         bool isProcessingClick = false;
 
         List<Button> cardButtons = new List<Button>();
+        Font cardFont = new Font("Arial", 28, FontStyle.Bold); // krijohet një herë
 
         // YJET - strukturë për çdo yll
         struct Star
@@ -145,6 +146,10 @@ namespace GameHub
             ShuffleIndices();
             CreateButtons();
             EnableAllCards(false);
+
+            // Pozicionoj Start button PAS CreateButtons - kështu di ku janë kartat
+            RepositionStartButton();
+            startBtn.BringToFront();
 
             isFormLoaded = true;
         }
@@ -311,6 +316,7 @@ namespace GameHub
             ShuffleIndices();
             CreateButtons();
             EnableAllCards(false);
+            RepositionStartButton();
         }
 
         void EnableAllCards(bool enabled)
@@ -376,7 +382,7 @@ namespace GameHub
             int spacing = 10;
 
             int availableWidth = this.ClientSize.Width;
-            int availableHeight = this.ClientSize.Height - topOffset - 20;
+            int availableHeight = this.ClientSize.Height - topOffset - 80; // 80px rezervë për butonin Start
             int btnSize = Math.Min(
                 (availableWidth - (cols - 1) * spacing) / (cols + 2),
                 (availableHeight - (rows - 1) * spacing) / rows
@@ -385,7 +391,7 @@ namespace GameHub
             int totalGridWidth = cols * btnSize + (cols - 1) * spacing;
             int totalGridHeight = rows * btnSize + (rows - 1) * spacing;
             int startX = (this.ClientSize.Width - totalGridWidth) / 2;
-            int startY = topOffset + (availableHeight - totalGridHeight) / 2;
+            int startY = topOffset;
 
             for (int i = 0; i < rows; i++)
             {
@@ -410,7 +416,7 @@ namespace GameHub
                     btn.BackColor = Color.FromArgb(30, 60, 160);
                     // ===== PIKËPYETJA =====
                     btn.Text = "?";
-                    btn.Font = new Font("Arial", 28, FontStyle.Bold);
+                    btn.Font = cardFont;
                     btn.ForeColor = Color.FromArgb(100, 149, 237);
                     // ======================
                     btn.Click += Button_Click;
@@ -431,6 +437,26 @@ namespace GameHub
             }
         }
 
+        void RepositionStartButton()
+        {
+            // Gjen fundin e gridit të kartave dhe vendos butonin 20px poshtë tyre
+            int bottomOfCards = 0;
+            foreach (Button b in cardButtons)
+            {
+                int bottom = b.Location.Y + b.Height;
+                if (bottom > bottomOfCards) bottomOfCards = bottom;
+            }
+            // Nëse nuk ka karta ende, përdor pozicionin default
+            int btnY = bottomOfCards > 0 ? bottomOfCards + 20 : this.ClientSize.Height - 80;
+
+            foreach (Control ctrl in this.Controls)
+                if (ctrl is Button btn && btn.Text == "▶ Start Game")
+                {
+                    btn.Location = new Point(this.ClientSize.Width / 2 - btn.Width / 2, btnY);
+                    break;
+                }
+        }
+
         void RepositionCards()
         {
             if (cardButtons.Count == 0) return;
@@ -440,7 +466,7 @@ namespace GameHub
             int spacing = 10;
 
             int availableWidth = this.ClientSize.Width;
-            int availableHeight = this.ClientSize.Height - topOffset - 20;
+            int availableHeight = this.ClientSize.Height - topOffset - 80; // 80px rezervë për butonin Start
             int btnSize = Math.Min(
                 (availableWidth - (cols - 1) * spacing) / (cols + 2),
                 (availableHeight - (rows - 1) * spacing) / rows
@@ -450,7 +476,7 @@ namespace GameHub
             int totalGridWidth = cols * btnSize + (cols - 1) * spacing;
             int totalGridHeight = rows * btnSize + (rows - 1) * spacing;
             int startX = (this.ClientSize.Width - totalGridWidth) / 2;
-            int startY = topOffset + (availableHeight - totalGridHeight) / 2;
+            int startY = topOffset;
 
             for (int i = 0; i < rows; i++)
             {
@@ -469,14 +495,7 @@ namespace GameHub
             // Rigjeneroj yjet sipas madhësisë së re
             GenerateStars();
 
-            foreach (Control ctrl in this.Controls)
-                if (ctrl is Button btn && btn.Text == "▶ Start Game")
-                {
-                    btn.Location = new Point(
-                        this.ClientSize.Width / 2 - btn.Width / 2,
-                        this.ClientSize.Height - 70);
-                    break;
-                }
+            RepositionStartButton();
         }
 
         void Button_Click(object sender, EventArgs e)
@@ -554,8 +573,8 @@ namespace GameHub
                 firstClicked.BackgroundImage = null;
                 firstClicked.BackColor = Color.FromArgb(30, 60, 160);       // BLU jo gri
                 firstClicked.FlatAppearance.BorderColor = Color.FromArgb(80, 120, 220);
-                firstClicked.Text = "?";                                      // kthe pikëpyetjen
-                firstClicked.Font = new Font("Arial", 28, FontStyle.Bold);
+                firstClicked.Text = "?";
+                firstClicked.Font = cardFont;
                 firstClicked.ForeColor = Color.FromArgb(100, 149, 237);
             }
             if (secondClicked != null && !matchedButtons.Contains(secondClicked))
@@ -563,8 +582,8 @@ namespace GameHub
                 secondClicked.BackgroundImage = null;
                 secondClicked.BackColor = Color.FromArgb(30, 60, 160);      // BLU jo gri
                 secondClicked.FlatAppearance.BorderColor = Color.FromArgb(80, 120, 220);
-                secondClicked.Text = "?";                                     // kthe pikëpyetjen
-                secondClicked.Font = new Font("Arial", 28, FontStyle.Bold);
+                secondClicked.Text = "?";
+                secondClicked.Font = cardFont;
                 secondClicked.ForeColor = Color.FromArgb(100, 149, 237);
             }
 
